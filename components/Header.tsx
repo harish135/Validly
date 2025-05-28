@@ -20,7 +20,7 @@ interface HeaderProps {
   navigateTo: (page: Page) => void; 
 }
 
-export const ValidlyLogo: React.FC<{ className?: string }> = ({ className = "h-8 w-auto" }) => (
+export const ValidlyLogo: React.FC<{ className?: string }> = ({ className = "h-20 w-auto" }) => (
   <svg className={className} viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
     <circle cx="20" cy="20" r="18" stroke="currentColor" strokeWidth="3" />
     <path d="M12 20L18 26L28 16" className="stroke-brand-premium-blue" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
@@ -75,7 +75,7 @@ const Header: React.FC<HeaderProps> = ({
   return (
     <header className="bg-brand-gray-900 shadow-premium sticky top-0 z-40 border-b border-brand-gray-700">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
+        <div className="flex items-center justify-between h-20">
           <div className="flex items-center">
             <button
               onClick={onToggleSidebar}
@@ -88,8 +88,11 @@ const Header: React.FC<HeaderProps> = ({
               {isSidebarOpen ? <CloseIcon className="block h-6 w-6" /> : <MenuIcon className="block h-6 w-6" />}
             </button>
             <a href="#" onClick={(e) => { e.preventDefault(); navigateTo('home'); }} className="flex items-center text-brand-gray-50 hover:text-brand-premium-blue transition-colors">
-              <ValidlyLogo />
-              <span className="ml-3 text-2xl font-semibold ">{APP_NAME}</span>
+            <img
+              src="/VA-removebg-preview.png"
+              alt="Validly Logo"
+              className="h-20 w-auto object-contain"
+            />
             </a>
           </div>
           

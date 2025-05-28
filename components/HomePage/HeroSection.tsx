@@ -1,4 +1,3 @@
-
 import React from 'react';
 import DocumentTextIcon from '../icons/DocumentTextIcon';
 import BeakerIcon from '../icons/BeakerIcon';
@@ -52,16 +51,16 @@ const HeroSection: React.FC<HeroSectionProps> = ({ navigateTo, myReportsCount })
   const hasReports = myReportsCount > 0;
 
   return (
-    <section className="text-center py-16 md:py-20 bg-brand-gray-950">
+    <section className="text-center py-16 md:py-20 bg-white">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <p className="text-sm font-semibold uppercase text-brand-premium-blue tracking-wider mb-3 animate-premium-slide-in-up" style={{ animationDelay: '0ms' }}>
           {hasReports ? "CONTINUE YOUR JOURNEY" : "UNLOCK YOUR PRODUCT'S POTENTIAL"}
         </p>
-        <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold text-brand-gray-50 mb-6 animate-premium-slide-in-up" style={{ animationDelay: '100ms' }}>
+        <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold text-black mb-6 animate-premium-slide-in-up" style={{ animationDelay: '100ms' }}>
           {hasReports ? "Welcome Back to " : "What is "} 
           <span className="text-brand-premium-blue">Validly</span>?
         </h1>
-        <p className="text-lg sm:text-xl text-brand-gray-300 max-w-3xl mx-auto mb-12 animate-premium-slide-in-up" style={{ animationDelay: '200ms' }}>
+        <p className="text-lg sm:text-xl text-brand-premium-blue max-w-3xl mx-auto mb-12 animate-premium-slide-in-up" style={{ animationDelay: '200ms' }}>
           {hasReports 
             ? "Dive back into your analyses or explore new insights. Validly is here to support your brand's growth with powerful AI tools."
             : "Validly helps you unlock product truth by analyzing claims, ingredient science, and health news, translating that data into actionable, real-world guidance. It's the research partner in your pocket."
@@ -87,9 +86,9 @@ const HeroSection: React.FC<HeroSectionProps> = ({ navigateTo, myReportsCount })
             animationDelay="400ms"
           />
           <HeroLevelsCard
-            title="AI News Digest" // Changed
-            description="Access AI-curated (simulated) news across various topics." // Changed
-            page="ai-news-digest" // Changed
+            title="AI News Digest"
+            description="Access AI-curated (simulated) news across various topics."
+            page="ai-news-digest"
             icon={<NewspaperIcon />}
             navigateTo={navigateTo}
             animationDelay="500ms"
