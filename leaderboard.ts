@@ -1,10 +1,10 @@
 import { supabase } from '../supabase';
 
-// Fetch the top N users from the leaderboard
-export async function fetchLeaderboard(limit = 10) {
+// Fetch the top N users from the leaderboard (with user data)
+export async function fetchLeaderboardWithUserData(limit = 10) {
   const { data, error } = await supabase
-    .from('leaderboard')
-    .select('*')
+    .from('validly_leaderboard')
+    .select('id, user_id, user_name, user_email, avatar_url, points')
     .order('points', { ascending: false })
     .limit(limit);
 
@@ -12,10 +12,15 @@ export async function fetchLeaderboard(limit = 10) {
   return data;
 }
 
+// Deprecated: Use fetchLeaderboardWithUserData instead
+export async function fetchLeaderboard(limit = 10) {
+  return fetchLeaderboardWithUserData(limit);
+}
+
 // Fetch the current user's points
 export async function fetchUserPoints(user_id: string) {
   const { data, error } = await supabase
-    .from('leaderboard')
+    .from('validly_leaderboard')
     .select('points')
     .eq('user_id', user_id)
     .single();
@@ -33,7 +38,7 @@ export async function upsertUserPoints({ user_id, user_name, user_email, avatar_
   points: number;
 }) {
   const { data, error } = await supabase
-    .from('leaderboard')
+    .from('validly_leaderboard')
     .upsert([
       { user_id, user_name, user_email, avatar_url, points }
     ], { onConflict: 'user_id' });
