@@ -1,5 +1,3 @@
-
-
 import React, { useContext, useEffect, useState } from 'react';
 import Section from '../shared/Section';
 import { UserProgressContext } from '../../contexts/UserProgressContext';
@@ -22,6 +20,8 @@ import TargetIcon from '../icons/TargetIcon';
 import ChatBubbleLeftRightIcon from '../icons/ChatBubbleLeftRightIcon';
 import IconButton from '../IconButton';
 import ArrowPathIcon from '../icons/ArrowPathIcon'; // Corrected import
+import { supabase } from '../../supabase';
+import { fetchLeaderboardWithUserData } from '../../services/leaderboard';
 
 const iconMap: { [key: string]: React.FC<any> } = {
   TrophyIcon, SparklesIcon, ShieldCheckIcon, LightBulbIcon, CheckCircleIcon, StarIcon, BeakerIcon, QuizIcon, TargetIcon, ChatBubbleLeftRightIcon
@@ -68,11 +68,18 @@ const AchievementsPage: React.FC<AchievementsPageProps> = ({ navigateTo }) => {
     const fetchLeaderboard = async () => {
       setIsLoadingLeaderboard(true);
       try {
-        const entries = await generateSimulatedLeaderboardEntries(5); // Fetch 5 simulated entries
+        const data = await fetchLeaderboardWithUserData();
+        const entries = (data || []).map((row: any) => ({
+          id: row.id,
+          userName: row.user_name,
+          userEmail: row.user_email,
+          avatarUrl: row.avatar_url,
+          score: row.points,
+        }));
         setLeaderboard(entries);
       } catch (error) {
-        console.error("Failed to fetch leaderboard:", error);
-        setLeaderboard([]); // Set to empty on error
+        console.error('Failed to fetch leaderboard:', error);
+        setLeaderboard([]);
       }
       setIsLoadingLeaderboard(false);
     };
@@ -85,20 +92,13 @@ const AchievementsPage: React.FC<AchievementsPageProps> = ({ navigateTo }) => {
 
   const { points, badgesEarned, validationsPerformed, ingredientsSearched, quizzesCompleted, challengesCompleted, forumPostsMade, resetProgress } = userProgress;
 
-  // Add current user to leaderboard display if they have points
+  // Add current user to leaderboard display if they have points and are not already in the list
   const displayLeaderboard = [...leaderboard];
-  if (points > 0) {
-    const currentUserEntry: LeaderboardEntry = { id: 'currentUser', userName: 'You', score: points, isCurrentUser: true };
-    // Check if user already in (simulated) list to avoid duplicates if score matches
-    const existingUserIndex = displayLeaderboard.findIndex(e => e.score === points && e.userName.toLowerCase().includes('user'));
-    if (existingUserIndex > -1 && displayLeaderboard[existingUserIndex].userName.length < 10) { // simple check for generic name
-        displayLeaderboard[existingUserIndex] = currentUserEntry;
-    } else {
-        displayLeaderboard.push(currentUserEntry);
-    }
+  if (points > 0 && !displayLeaderboard.some(e => e.isCurrentUser)) {
+    const currentUserEntry: LeaderboardEntry = { id: 'currentUser', userName: 'You', userEmail: '', avatarUrl: '', score: points, isCurrentUser: true };
+    displayLeaderboard.push(currentUserEntry);
   }
   displayLeaderboard.sort((a, b) => b.score - a.score);
-
 
   return (
     <Section 
@@ -135,31 +135,38 @@ const AchievementsPage: React.FC<AchievementsPageProps> = ({ navigateTo }) => {
           )}
         </div>
 
-        {/* Simulated Leaderboard Section */}
+        {/* Community Leaderboard Section */}
         <div>
           <h3 className="text-2xl font-semibold text-brand-gray-100 mb-4 flex items-center">
-            <StarIcon className="w-7 h-7 mr-2 text-yellow-400" /> Simulated Community Leaderboard
+            <StarIcon className="w-7 h-7 mr-2 text-yellow-400" /> Community Leaderboard
           </h3>
           {isLoadingLeaderboard ? (
             <LoadingSpinner message="Loading leaderboard..." />
           ) : leaderboard.length > 0 ? (
             <div className="bg-brand-gray-800 p-4 rounded-lg shadow-md border border-brand-gray-700">
               <ol className="space-y-3">
-                {displayLeaderboard.slice(0,7).map((entry, index) => ( // Show top 7
+                {displayLeaderboard.slice(0,7).map((entry, index) => (
                   <li 
                     key={entry.id} 
                     className={`flex justify-between items-center p-3 rounded-md transition-all
                                 ${entry.isCurrentUser ? 'bg-brand-premium-blue text-white shadow-lg scale-105' : 'bg-brand-gray-700 hover:bg-brand-gray-600'}`}
                   >
                     <div className="flex items-center">
-                      <span className={`font-semibold w-6 text-center ${entry.isCurrentUser ? 'text-blue-100' : 'text-brand-gray-400'}`}>{index + 1}.</span>
-                      <span className={`ml-2 font-medium ${entry.isCurrentUser ? 'text-white' : 'text-brand-gray-200'}`}>{entry.userName}</span>
+                      {entry.avatarUrl && (
+                        <img src={entry.avatarUrl} alt={entry.userName} className="w-8 h-8 rounded-full mr-3 border-2 border-brand-premium-blue" />
+                      )}
+                      <div>
+                        <span className={`font-semibold w-6 text-center ${entry.isCurrentUser ? 'text-blue-100' : 'text-brand-gray-400'}`}>{index + 1}.</span>
+                        <span className={`ml-2 font-medium ${entry.isCurrentUser ? 'text-white' : 'text-brand-gray-200'}`}>{entry.userName}</span>
+                        {entry.userEmail && (
+                          <span className="ml-2 text-xs text-brand-gray-300">({entry.userEmail})</span>
+                        )}
+                      </div>
                     </div>
                     <span className={`font-bold ${entry.isCurrentUser ? 'text-yellow-300' : 'text-brand-premium-blue'}`}>{entry.score} pts</span>
                   </li>
                 ))}
               </ol>
-              <p className="text-xs text-brand-gray-500 mt-3 text-center italic">This is a simulated leaderboard for demonstration purposes.</p>
             </div>
           ) : (
             <p className="text-brand-gray-400">Leaderboard data is currently unavailable.</p>
