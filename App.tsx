@@ -2,7 +2,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { supabase } from './supabase';
 import { Session, AuthChangeEvent } from '@supabase/supabase-js';
-import Header from './src/components/Header';
+import Header from './components/Header';
 import Footer from './components/Footer';
 import HomePage from './components/HomePage/HomePage';
 import ValidatorPage from './components/ValidatorPage/ValidatorPage';
@@ -437,9 +437,6 @@ const App: React.FC = () => {
           myReportsCount={myReports.length}
           onToggleMyReports={handleToggleMyReportsModal}
           navigateTo={navigateTo}
-          handleGoogleSignIn={handleGoogleSignIn}
-          handleGoogleSignOut={handleGoogleSignOut}
-          user={user}
         />
         <Sidebar 
           isOpen={isSidebarOpen} 
