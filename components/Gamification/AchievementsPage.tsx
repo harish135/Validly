@@ -20,7 +20,6 @@ import TargetIcon from '../icons/TargetIcon';
 import ChatBubbleLeftRightIcon from '../icons/ChatBubbleLeftRightIcon';
 import IconButton from '../IconButton';
 import ArrowPathIcon from '../icons/ArrowPathIcon'; // Corrected import
-import { supabase } from '../../supabase';
 import { fetchLeaderboardWithUserData } from '../../services/leaderboard';
 
 const iconMap: { [key: string]: React.FC<any> } = {
