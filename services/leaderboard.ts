@@ -2,33 +2,37 @@ import { supabase } from '../supabase';
 import type { LeaderboardEntry } from '../types';
 
 /**
- * Fetches leaderboard data from Supabase calidly_leaderboard table
+ * Fetches leaderboard data from Supabase validly_leaderboard table
  */
 export async function fetchLeaderboardWithUserData(): Promise<LeaderboardEntry[]> {
   try {
     const { data, error } = await supabase
       .from('validly_leaderboard')
       .select('*')
-      .order('points', { ascending: false })
-      .limit(10); // Limit to top 10 users
+      .order('score', { ascending: false })
+      .limit(10);
 
     if (error) {
       console.error('Error fetching leaderboard:', error);
-      throw error;
+      return [];
     }
 
     if (!data) {
       return [];
     }
 
+    // Get the current user's ID from the session
+    const { data: { session } } = await supabase.auth.getSession();
+    const currentUserId = session?.user?.id;
+
     // Transform the Supabase data to match LeaderboardEntry interface
     const leaderboardEntries: LeaderboardEntry[] = data.map((row: any) => ({
-      id: row.id?.toString() || row.user_id?.toString() || 'unknown',
-      userName: row.user_name || row.name || 'Anonymous',
-      userEmail: row.user_email || row.email || '',
+      id: row.user_id,
+      userName: row.user_name,
+      userEmail: row.user_email,
       avatarUrl: row.avatar_url || '',
-      score: row.points || row.score || 0,
-      isCurrentUser: false // This will be set later in the component
+      score: row.score,
+      isCurrentUser: row.user_id === currentUserId
     }));
 
     return leaderboardEntries;
@@ -42,32 +46,29 @@ export async function fetchLeaderboardWithUserData(): Promise<LeaderboardEntry[]
  * Updates or inserts a user's score in the leaderboard
  */
 export async function updateUserScore(
-  userId: string, 
-  userName: string, 
-  userEmail: string, 
-  points: number,
-  avatarUrl?: string
+  userId: string,
+  userName: string,
+  userEmail: string,
+  score: number
 ): Promise<void> {
   try {
     const { error } = await supabase
-      .from('calidly_leaderboard')
+      .from('validly_leaderboard')
       .upsert({
         user_id: userId,
         user_name: userName,
         user_email: userEmail,
-        points: points,
-        avatar_url: avatarUrl || '',
+        score: score,
         updated_at: new Date().toISOString()
       }, {
         onConflict: 'user_id'
       });
 
     if (error) {
-      console.error('Error updating user score:', error);
       throw error;
     }
   } catch (error) {
-    console.error('Failed to update user score:', error);
+    console.error('Error updating user score:', error);
     throw error;
   }
 }

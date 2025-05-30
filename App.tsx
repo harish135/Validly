@@ -14,6 +14,7 @@ import Sidebar from './components/Sidebar';
 import { MOCK_PDF_MESSAGE, MOCK_BADGE_MESSAGE, DEFAULT_CUSTOM_COLOR, MOCK_DOCX_MESSAGE, MOCK_JSON_EXPORT_MESSAGE } from './constants';
 import type { ReportData, MyReportItem, CustomizationSettings } from './types';
 import { UserProgressProvider } from './contexts/UserProgressContext';
+import { AppUserProvider } from './contexts/AppUserContext';
 
 // Import Feature Pages
 import CompetitorMonitoringPage from './components/ProFeaturePages/CompetitorMonitoringPage';
@@ -313,157 +314,159 @@ const App: React.FC = () => {
   }
 
   return (
-    <UserProgressProvider>
-      <div className="flex flex-col min-h-screen bg-white font-sans">
-        <Header
-          user={appUser}
-          onSignIn={handleGoogleSignIn}
-          onSignOut={handleGoogleSignOut}
-          onToggleSidebar={toggleSidebar}
-          isSidebarOpen={isSidebarOpen}
-          myReportsCount={myReports.length}
-          onToggleMyReports={handleToggleMyReportsModal}
-          navigateTo={navigateTo}
-        />
-        <Sidebar
-          isOpen={isSidebarOpen}
-          onClose={closeSidebar}
-          navigateTo={navigateTo}
-          currentPage={(location.pathname.substring(1) || 'home') as Page}
-        />
-        <main className="flex-grow container mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-premium-slide-in-up">
-          <Routes>
-            {/* Public routes */}
-            <Route path="/" element={<HomePage navigateTo={navigateTo} myReportsCount={myReports.length} />} />
-            <Route path="/pricing" element={<PricingPage />} />
-            <Route path="/contact" element={<ContactPage />} />
-            <Route path="/terms-of-service" element={<TermsPage />} />
+    <AppUserProvider user={appUser}>
+      <UserProgressProvider>
+        <div className="flex flex-col min-h-screen bg-white font-sans">
+          <Header
+            user={appUser}
+            onSignIn={handleGoogleSignIn}
+            onSignOut={handleGoogleSignOut}
+            onToggleSidebar={toggleSidebar}
+            isSidebarOpen={isSidebarOpen}
+            myReportsCount={myReports.length}
+            onToggleMyReports={handleToggleMyReportsModal}
+            navigateTo={navigateTo}
+          />
+          <Sidebar
+            isOpen={isSidebarOpen}
+            onClose={closeSidebar}
+            navigateTo={navigateTo}
+            currentPage={(location.pathname.substring(1) || 'home') as Page}
+          />
+          <main className="flex-grow container mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-premium-slide-in-up">
+            <Routes>
+              {/* Public routes */}
+              <Route path="/" element={<HomePage navigateTo={navigateTo} myReportsCount={myReports.length} />} />
+              <Route path="/pricing" element={<PricingPage />} />
+              <Route path="/contact" element={<ContactPage />} />
+              <Route path="/terms-of-service" element={<TermsPage />} />
 
-            {/* Protected routes */}
-            <Route path="/validator" element={
-              <ProtectedRoute>
-                <ValidatorPage
-                  onExportPDF={handleExportPDF}
-                  onGenerateBadge={handleGenerateBadge}
-                  onExportDocx={handleExportDocx}
-                  onExportJson={handleExportJson}
-                  onReportGenerated={handleReportGenerated}
-                  initialReport={selectedReportForView}
-                  initialClaim={initialClaimForValidator}
-                  customizationSettings={customizationSettings}
-                  onCustomizationChange={handleCustomizationChange}
-                />
-              </ProtectedRoute>
-            } />
-            <Route path="/ingredient-analyser" element={
-              <ProtectedRoute>
-                <IngredientAnalyserPage />
-              </ProtectedRoute>
-            } />
-            <Route path="/ai-news-digest" element={
-              <ProtectedRoute>
-                <HealthcareNewsPage />
-              </ProtectedRoute>
-            } />
-            <Route path="/symptom-analyzer" element={
-              <ProtectedRoute>
-                <SymptomAnalyzerPage />
-              </ProtectedRoute>
-            } />
-            <Route path="/community-forum" element={
-              <ProtectedRoute>
-                <CommunityForumPage />
-              </ProtectedRoute>
-            } />
-            <Route path="/achievements" element={
-              <ProtectedRoute>
-                <AchievementsPage navigateTo={navigateTo} />
-              </ProtectedRoute>
-            } />
-            <Route path="/quizzes" element={
-              <ProtectedRoute>
-                <QuizzesPage />
-              </ProtectedRoute>
-            } />
-            <Route path="/challenges" element={
-              <ProtectedRoute>
-                <ChallengesPage />
-              </ProtectedRoute>
-            } />
-            <Route path="/competitor-monitoring" element={
-              <ProtectedRoute>
-                <CompetitorMonitoringPage />
-              </ProtectedRoute>
-            } />
-            <Route path="/api-access" element={
-              <ProtectedRoute>
-                <ApiAccessPage />
-              </ProtectedRoute>
-            } />
-            <Route path="/support" element={
-              <ProtectedRoute>
-                <SupportPage />
-              </ProtectedRoute>
-            } />
-            <Route path="/consumer-insights" element={
-              <ProtectedRoute>
-                <ConsumerInsightsPage />
-              </ProtectedRoute>
-            } />
-            <Route path="/compliance-assistant" element={
-              <ProtectedRoute>
-                <ComplianceAssistantPage />
-              </ProtectedRoute>
-            } />
-            <Route path="/formulation-advisor" element={
-              <ProtectedRoute>
-                <FormulationAdvisorPage />
-              </ProtectedRoute>
-            } />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </main>
-        <Footer navigateTo={navigateTo} />
-        <Modal isOpen={isInfoModalOpen} onClose={closeInfoModal} title={infoModalContent.title}>
-          <p>{infoModalContent.message}</p>
-        </Modal>
-        <Modal 
-          isOpen={isSignInPromptOpen} 
-          onClose={handleCloseSignInPrompt} 
-          title="Sign In Required"
-        >
-          <div className="text-center">
-            <p className="mb-4 text-gray-700">
-              Please sign in to access this feature. Sign in to continue to:
-              <br />
-              <span className="font-semibold text-brand-premium-blue">
-                {pendingRedirectPath?.split('/').pop()?.replace(/-/g, ' ').toUpperCase()}
-              </span>
-            </p>
-            <div className="flex justify-center space-x-4">
-              <button
-                onClick={handleSignInPrompt}
-                className="px-6 py-2 text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-              >
-                Sign In
-              </button>
-              <button
-                onClick={handleCloseSignInPrompt}
-                className="px-6 py-2 text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
-              >
-                Cancel
-              </button>
+              {/* Protected routes */}
+              <Route path="/validator" element={
+                <ProtectedRoute>
+                  <ValidatorPage
+                    onExportPDF={handleExportPDF}
+                    onGenerateBadge={handleGenerateBadge}
+                    onExportDocx={handleExportDocx}
+                    onExportJson={handleExportJson}
+                    onReportGenerated={handleReportGenerated}
+                    initialReport={selectedReportForView}
+                    initialClaim={initialClaimForValidator}
+                    customizationSettings={customizationSettings}
+                    onCustomizationChange={handleCustomizationChange}
+                  />
+                </ProtectedRoute>
+              } />
+              <Route path="/ingredient-analyser" element={
+                <ProtectedRoute>
+                  <IngredientAnalyserPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/ai-news-digest" element={
+                <ProtectedRoute>
+                  <HealthcareNewsPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/symptom-analyzer" element={
+                <ProtectedRoute>
+                  <SymptomAnalyzerPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/community-forum" element={
+                <ProtectedRoute>
+                  <CommunityForumPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/achievements" element={
+                <ProtectedRoute>
+                  <AchievementsPage navigateTo={navigateTo} />
+                </ProtectedRoute>
+              } />
+              <Route path="/quizzes" element={
+                <ProtectedRoute>
+                  <QuizzesPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/challenges" element={
+                <ProtectedRoute>
+                  <ChallengesPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/competitor-monitoring" element={
+                <ProtectedRoute>
+                  <CompetitorMonitoringPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/api-access" element={
+                <ProtectedRoute>
+                  <ApiAccessPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/support" element={
+                <ProtectedRoute>
+                  <SupportPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/consumer-insights" element={
+                <ProtectedRoute>
+                  <ConsumerInsightsPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/compliance-assistant" element={
+                <ProtectedRoute>
+                  <ComplianceAssistantPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/formulation-advisor" element={
+                <ProtectedRoute>
+                  <FormulationAdvisorPage />
+                </ProtectedRoute>
+              } />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </main>
+          <Footer navigateTo={navigateTo} />
+          <Modal isOpen={isInfoModalOpen} onClose={closeInfoModal} title={infoModalContent.title}>
+            <p>{infoModalContent.message}</p>
+          </Modal>
+          <Modal 
+            isOpen={isSignInPromptOpen} 
+            onClose={handleCloseSignInPrompt} 
+            title="Sign In Required"
+          >
+            <div className="text-center">
+              <p className="mb-4 text-gray-700">
+                Please sign in to access this feature. Sign in to continue to:
+                <br />
+                <span className="font-semibold text-brand-premium-blue">
+                  {pendingRedirectPath?.split('/').pop()?.replace(/-/g, ' ').toUpperCase()}
+                </span>
+              </p>
+              <div className="flex justify-center space-x-4">
+                <button
+                  onClick={handleSignInPrompt}
+                  className="px-6 py-2 text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                >
+                  Sign In
+                </button>
+                <button
+                  onClick={handleCloseSignInPrompt}
+                  className="px-6 py-2 text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
-          </div>
-        </Modal>
-        <MyReportsModal
-          isOpen={isMyReportsModalOpen}
-          onClose={handleToggleMyReportsModal}
-          myReportItems={myReports}
-          onSelectMyReportItem={handleSelectMyReportItem}
-        />
-      </div>
-    </UserProgressProvider>
+          </Modal>
+          <MyReportsModal
+            isOpen={isMyReportsModalOpen}
+            onClose={handleToggleMyReportsModal}
+            myReportItems={myReports}
+            onSelectMyReportItem={handleSelectMyReportItem}
+          />
+        </div>
+      </UserProgressProvider>
+    </AppUserProvider>
   );
 };
 

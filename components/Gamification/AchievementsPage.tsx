@@ -1,6 +1,7 @@
 import React, { useContext, useEffect, useState } from 'react';
 import Section from '../shared/Section';
 import { UserProgressContext } from '../../contexts/UserProgressContext';
+import { useAppUser } from '../../contexts/AppUserContext';
 import type { BadgeDefinition, LeaderboardEntry } from '../../types';
 import type { Page as AppPage } from '../../App'; 
 import { BADGE_DEFINITIONS } from '../../constants';
@@ -58,17 +59,9 @@ interface AchievementsPageProps {
 
 const AchievementsPage: React.FC<AchievementsPageProps> = ({ navigateTo }) => {
   const userProgress = useContext(UserProgressContext);
+  const { user: appUser } = useAppUser();
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [isLoadingLeaderboard, setIsLoadingLeaderboard] = useState(true);
-  const [currentUserId] = useState(() => {
-    // Generate a simple user ID for demo purposes
-    // In a real app, this would come from authentication
-    return localStorage.getItem('demo_user_id') || (() => {
-      const id = 'user_' + Math.random().toString(36).substr(2, 9);
-      localStorage.setItem('demo_user_id', id);
-      return id;
-    })();
-  });
 
   useEffect(() => {
     const fetchLeaderboard = async () => {
@@ -87,13 +80,13 @@ const AchievementsPage: React.FC<AchievementsPageProps> = ({ navigateTo }) => {
 
   // Update user score in Supabase whenever points change
   useEffect(() => {
-    if (userProgress && userProgress.points > 0) {
+    if (userProgress && userProgress.points > 0 && appUser) {
       const updateScore = async () => {
         try {
           await updateUserScore(
-            currentUserId,
-            'Demo User', // In a real app, get from auth context
-            'demo@example.com', // In a real app, get from auth context
+            appUser.id,
+            appUser.name,
+            appUser.email,
             userProgress.points
           );
           // Refresh leaderboard after updating score
@@ -105,9 +98,9 @@ const AchievementsPage: React.FC<AchievementsPageProps> = ({ navigateTo }) => {
       };
       updateScore();
     }
-  }, [userProgress?.points, currentUserId]);
+  }, [userProgress?.points, appUser]);
   
-  if (!userProgress) {
+  if (!userProgress || !appUser) {
     return <LoadingSpinner message="Loading user progress..." />;
   }
 
@@ -117,10 +110,10 @@ const AchievementsPage: React.FC<AchievementsPageProps> = ({ navigateTo }) => {
   const displayLeaderboard = [...leaderboard];
   if (points > 0 && !displayLeaderboard.some(e => e.isCurrentUser)) {
     const currentUserEntry: LeaderboardEntry = { 
-      id: currentUserId, 
-      userName: 'You', 
-      userEmail: 'demo@example.com', 
-      avatarUrl: '', 
+      id: appUser.id, 
+      userName: appUser.name, 
+      userEmail: appUser.email, 
+      avatarUrl: appUser.imageUrl, 
       score: points, 
       isCurrentUser: true 
     };
