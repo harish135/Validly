@@ -222,15 +222,16 @@ const App: React.FC = () => {
   };
 
   const handleGoogleSignOut = async () => {
-    console.log('Initiating Sign Out...');
+    if (!session) {
+      alert('You are already signed out.');
+      return;
+    }
     const { error } = await supabase.auth.signOut();
     if (error) {
-      console.error('Error during sign out:', error.message);
       alert(`Sign-out error: ${error.message}`);
     } else {
       // onAuthStateChange will handle setting appUser to null
-      console.log('Sign out successful, navigating to home.');
-      navigate('/', { replace: true }); // Navigate to a public page after sign out
+      navigate('/', { replace: true });
     }
   };
 
