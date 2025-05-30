@@ -1,11 +1,9 @@
 import React, { useContext, useEffect, useState } from 'react';
 import Section from '../shared/Section';
 import { UserProgressContext } from '../../contexts/UserProgressContext';
-// FIX: Import Page as AppPage from ../../App instead of ../../types
 import type { BadgeDefinition, LeaderboardEntry } from '../../types';
 import type { Page as AppPage } from '../../App'; 
 import { BADGE_DEFINITIONS } from '../../constants';
-import { generateSimulatedLeaderboardEntries } from '../../services/geminiService';
 import LoadingSpinner from '../LoadingSpinner';
 import InfoIcon from '../icons/InfoIcon';
 import TrophyIcon from '../icons/TrophyIcon';
@@ -19,8 +17,8 @@ import QuizIcon from '../icons/QuizIcon';
 import TargetIcon from '../icons/TargetIcon';
 import ChatBubbleLeftRightIcon from '../icons/ChatBubbleLeftRightIcon';
 import IconButton from '../IconButton';
-import ArrowPathIcon from '../icons/ArrowPathIcon'; // Corrected import
-import { fetchLeaderboardWithUserData } from '../../services/leaderboard';
+import ArrowPathIcon from '../icons/ArrowPathIcon';
+import { fetchLeaderboardWithUserData, updateUserScore } from '../../services/leaderboard';
 
 const iconMap: { [key: string]: React.FC<any> } = {
   TrophyIcon, SparklesIcon, ShieldCheckIcon, LightBulbIcon, CheckCircleIcon, StarIcon, BeakerIcon, QuizIcon, TargetIcon, ChatBubbleLeftRightIcon
@@ -62,20 +60,22 @@ const AchievementsPage: React.FC<AchievementsPageProps> = ({ navigateTo }) => {
   const userProgress = useContext(UserProgressContext);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [isLoadingLeaderboard, setIsLoadingLeaderboard] = useState(true);
+  const [currentUserId] = useState(() => {
+    // Generate a simple user ID for demo purposes
+    // In a real app, this would come from authentication
+    return localStorage.getItem('demo_user_id') || (() => {
+      const id = 'user_' + Math.random().toString(36).substr(2, 9);
+      localStorage.setItem('demo_user_id', id);
+      return id;
+    })();
+  });
 
   useEffect(() => {
     const fetchLeaderboard = async () => {
       setIsLoadingLeaderboard(true);
       try {
         const data = await fetchLeaderboardWithUserData();
-        const entries = (data || []).map((row: any) => ({
-          id: row.id,
-          userName: row.user_name,
-          userEmail: row.user_email,
-          avatarUrl: row.avatar_url,
-          score: row.points,
-        }));
-        setLeaderboard(entries);
+        setLeaderboard(data);
       } catch (error) {
         console.error('Failed to fetch leaderboard:', error);
         setLeaderboard([]);
@@ -84,6 +84,28 @@ const AchievementsPage: React.FC<AchievementsPageProps> = ({ navigateTo }) => {
     };
     fetchLeaderboard();
   }, []);
+
+  // Update user score in Supabase whenever points change
+  useEffect(() => {
+    if (userProgress && userProgress.points > 0) {
+      const updateScore = async () => {
+        try {
+          await updateUserScore(
+            currentUserId,
+            'Demo User', // In a real app, get from auth context
+            'demo@example.com', // In a real app, get from auth context
+            userProgress.points
+          );
+          // Refresh leaderboard after updating score
+          const updatedData = await fetchLeaderboardWithUserData();
+          setLeaderboard(updatedData);
+        } catch (error) {
+          console.error('Failed to update user score:', error);
+        }
+      };
+      updateScore();
+    }
+  }, [userProgress?.points, currentUserId]);
   
   if (!userProgress) {
     return <LoadingSpinner message="Loading user progress..." />;
@@ -91,18 +113,17 @@ const AchievementsPage: React.FC<AchievementsPageProps> = ({ navigateTo }) => {
 
   const { points, badgesEarned, validationsPerformed, ingredientsSearched, quizzesCompleted, challengesCompleted, forumPostsMade, resetProgress } = userProgress;
 
-  // Add current user to leaderboard display if they have points and are not already in the list
-  const displayLeaderboard = [...leaderboard];
-  if (points > 0 && !displayLeaderboard.some(e => e.isCurrentUser)) {
-    const currentUserEntry: LeaderboardEntry = { id: 'currentUser', userName: 'You', userEmail: '', avatarUrl: '', score: points, isCurrentUser: true };
-    displayLeaderboard.push(currentUserEntry);
-  }
-  displayLeaderboard.sort((a, b) => b.score - a.score);
+  // Mark current user in leaderboard
+  const displayLeaderboard = leaderboard.map(entry => ({
+    ...entry,
+    isCurrentUser: entry.id === currentUserId || 
+                   (entry.userName === 'Demo User' && entry.userEmail === 'demo@example.com')
+  }));
 
   return (
     <Section 
       title="My Achievements & Progress"
-      subtitle="Track your journey, earn badges, and see how you stack up on the (simulated) leaderboard!"
+      subtitle="Track your journey, earn badges, and compete on the real leaderboard!"
       animate={true}
       className="bg-brand-gray-900 rounded-xl border border-brand-gray-700 shadow-card"
     >
@@ -141,10 +162,10 @@ const AchievementsPage: React.FC<AchievementsPageProps> = ({ navigateTo }) => {
           </h3>
           {isLoadingLeaderboard ? (
             <LoadingSpinner message="Loading leaderboard..." />
-          ) : leaderboard.length > 0 ? (
+          ) : displayLeaderboard.length > 0 ? (
             <div className="bg-brand-gray-800 p-4 rounded-lg shadow-md border border-brand-gray-700">
               <ol className="space-y-3">
-                {displayLeaderboard.slice(0,7).map((entry, index) => (
+                {displayLeaderboard.slice(0, 10).map((entry, index) => (
                   <li 
                     key={entry.id} 
                     className={`flex justify-between items-center p-3 rounded-md transition-all
@@ -156,8 +177,10 @@ const AchievementsPage: React.FC<AchievementsPageProps> = ({ navigateTo }) => {
                       )}
                       <div>
                         <span className={`font-semibold w-6 text-center ${entry.isCurrentUser ? 'text-blue-100' : 'text-brand-gray-400'}`}>{index + 1}.</span>
-                        <span className={`ml-2 font-medium ${entry.isCurrentUser ? 'text-white' : 'text-brand-gray-200'}`}>{entry.userName}</span>
-                        {entry.userEmail && (
+                        <span className={`ml-2 font-medium ${entry.isCurrentUser ? 'text-white' : 'text-brand-gray-200'}`}>
+                          {entry.isCurrentUser ? 'You' : entry.userName}
+                        </span>
+                        {entry.userEmail && !entry.isCurrentUser && (
                           <span className="ml-2 text-xs text-brand-gray-300">({entry.userEmail})</span>
                         )}
                       </div>
@@ -166,9 +189,15 @@ const AchievementsPage: React.FC<AchievementsPageProps> = ({ navigateTo }) => {
                   </li>
                 ))}
               </ol>
+              <p className="text-xs text-brand-gray-500 mt-3 text-center">
+                Real-time leaderboard powered by Supabase
+              </p>
             </div>
           ) : (
-            <p className="text-brand-gray-400">Leaderboard data is currently unavailable.</p>
+            <div className="bg-brand-gray-800 p-6 rounded-lg shadow-md border border-brand-gray-700 text-center">
+              <p className="text-brand-gray-400 mb-2">No leaderboard data available yet.</p>
+              <p className="text-xs text-brand-gray-500">Start earning points to appear on the leaderboard!</p>
+            </div>
           )}
         </div>
         
@@ -188,7 +217,7 @@ const AchievementsPage: React.FC<AchievementsPageProps> = ({ navigateTo }) => {
                 onClick={() => {
                     if(window.confirm("Are you sure you want to reset all your progress? This is for demo purposes and cannot be undone.")) {
                         resetProgress();
-                         // Force re-render or navigate to re-initialize
+                        // Force re-render or navigate to re-initialize
                         window.location.reload(); // Simplest for demo
                     }
                 }}
@@ -196,13 +225,11 @@ const AchievementsPage: React.FC<AchievementsPageProps> = ({ navigateTo }) => {
                 size="sm"
                 icon={<ArrowPathIcon className="w-4 h-4"/>}
             />
-            <p className="text-xs text-brand-gray-500 mt-2">Note: Progress is stored locally in your browser.</p>
+            <p className="text-xs text-brand-gray-500 mt-2">Note: Progress is stored locally in your browser, but leaderboard scores are saved to Supabase.</p>
         </div>
       </div>
     </Section>
   );
 };
-
-// Removed inline ArrowPathIcon definition
 
 export default AchievementsPage;
