@@ -188,9 +188,6 @@ const AchievementsPage: React.FC<AchievementsPageProps> = ({ navigateTo }) => {
                         <span className={`ml-2 font-medium ${entry.isCurrentUser ? 'text-white' : 'text-brand-gray-200'}`}>
                           {entry.isCurrentUser ? 'You' : entry.userName}
                         </span>
-                        {entry.userEmail && !entry.isCurrentUser && (
-                          <span className="ml-2 text-xs text-brand-gray-300">({entry.userEmail})</span>
-                        )}
                       </div>
                     </div>
                     <span className={`font-bold ${entry.isCurrentUser ? 'text-yellow-300' : 'text-brand-premium-blue'}`}>{entry.score} pts</span>
