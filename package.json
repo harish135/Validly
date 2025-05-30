@@ -13,7 +13,6 @@
     "@supabase/supabase-js": "^2.49.8",
     "@types/gapi": "^0.0.47",
     "@types/gapi.auth2": "^0.0.61",
-    "firebase": "^10.14.1",
     "gapi-script": "^1.2.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",

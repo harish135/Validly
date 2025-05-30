@@ -1,17 +1,19 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
-import { supabase } from './supabase';
-import { Session, AuthChangeEvent } from '@supabase/supabase-js';
+import { supabase } from './supabase'; // Path to your supabase.ts
+import { Session, AuthChangeEvent, User as SupabaseUser } from '@supabase/supabase-js'; // Import Supabase User type
+
+// Import Components (ensure paths are correct)
 import Header from './components/Header';
 import Footer from './components/Footer';
 import HomePage from './components/HomePage/HomePage';
 import ValidatorPage from './components/ValidatorPage/ValidatorPage';
 import Modal from './components/Modal';
 import MyReportsModal from './components/MyReportsModal';
-import Sidebar from './components/Sidebar'; 
+import Sidebar from './components/Sidebar';
 import { MOCK_PDF_MESSAGE, MOCK_BADGE_MESSAGE, DEFAULT_CUSTOM_COLOR, MOCK_DOCX_MESSAGE, MOCK_JSON_EXPORT_MESSAGE } from './constants';
 import type { ReportData, MyReportItem, CustomizationSettings } from './types';
-import { UserProgressProvider } from './contexts/UserProgressContext'; 
+import { UserProgressProvider } from './contexts/UserProgressContext';
 
 // Import Feature Pages
 import CompetitorMonitoringPage from './components/ProFeaturePages/CompetitorMonitoringPage';
@@ -24,39 +26,39 @@ import ConsumerInsightsPage from './components/ProFeaturePages/ConsumerInsightsP
 import ComplianceAssistantPage from './components/ProFeaturePages/ComplianceAssistantPage';
 import FormulationAdvisorPage from './components/ProFeaturePages/FormulationAdvisorPage';
 import CommunityForumPage from './components/CommunityForumPage/CommunityForumPage';
-import AchievementsPage from './components/Gamification/AchievementsPage'; 
-import QuizzesPage from './components/Gamification/QuizzesPage'; 
-import ChallengesPage from './components/Gamification/ChallengesPage'; 
+import AchievementsPage from './components/Gamification/AchievementsPage';
+import QuizzesPage from './components/Gamification/QuizzesPage';
+import ChallengesPage from './components/Gamification/ChallengesPage';
 
 // Import New Static Pages
 import PricingPage from './components/StaticPages/PricingPage';
 import ContactPage from './components/StaticPages/ContactPage';
 import TermsPage from './components/StaticPages/TermsPage';
+import LoadingSpinner from './components/LoadingSpinner'; // Assuming you have this component
 
-// Add type for ImportMeta
+
+// Add type for ImportMeta to satisfy TypeScript
 interface ImportMeta {
-  env: {
-    VITE_FIREBASE_API_KEY: string;
-    VITE_FIREBASE_AUTH_DOMAIN: string;
-    VITE_FIREBASE_PROJECT_ID: string;
-    VITE_FIREBASE_STORAGE_BUCKET: string;
-    VITE_FIREBASE_MESSAGING_SENDER_ID: string;
-    VITE_FIREBASE_APP_ID: string;
+  readonly env: {
+    readonly VITE_SUPABASE_URL: string;
+    readonly VITE_SUPABASE_ANON_KEY: string;
+    readonly VITE_APP_BASE_URL?: string; // Optional for production, required for local dev redirect
+    readonly MODE: 'development' | 'production' | string;
   };
 }
 
-export type Page = 
-  | 'home' 
-  | 'validator' 
+export type Page =
+  | 'home'
+  | 'validator'
   | 'ingredient-analyser'
-  | 'ai-news-digest' 
+  | 'ai-news-digest'
   | 'symptom-analyzer'
-  | 'community-forum' 
-  | 'achievements' 
-  | 'quizzes' 
-  | 'challenges' 
-  | 'competitor-monitoring' 
-  | 'api-access' 
+  | 'community-forum'
+  | 'achievements'
+  | 'quizzes'
+  | 'challenges'
+  | 'competitor-monitoring'
+  | 'api-access'
   | 'support'
   | 'consumer-insights'
   | 'compliance-assistant'
@@ -65,421 +67,394 @@ export type Page =
   | 'contact'
   | 'terms-of-service';
 
+// Define a more specific type for your app's user state, derived from SupabaseUser
+export interface AppUser {
+  id: string;
+  name: string;
+  email: string;
+  imageUrl: string;
+}
+
 const App: React.FC = () => {
+  const [session, setSession] = useState<Session | null>(null);
+  const [appUser, setAppUser] = useState<AppUser | null>(null);
+  const [isInitializingAuth, setIsInitializingAuth] = useState<boolean>(true);
   const [isInfoModalOpen, setIsInfoModalOpen] = useState<boolean>(false);
   const [infoModalContent, setInfoModalContent] = useState<{ title: string; message: string }>({ title: '', message: '' });
-  const [user, setUser] = useState<{ name: string; email: string; imageUrl: string } | null>(null);
+  const [isSignInPromptOpen, setIsSignInPromptOpen] = useState<boolean>(false);
+  const [pendingRedirectPath, setPendingRedirectPath] = useState<string | null>(null);
   const [myReports, setMyReports] = useState<MyReportItem[]>([]);
   const [isMyReportsModalOpen, setIsMyReportsModalOpen] = useState<boolean>(false);
   const [selectedReportForView, setSelectedReportForView] = useState<ReportData | null>(null);
   const [initialClaimForValidator, setInitialClaimForValidator] = useState<string>("");
   const [customizationSettings, setCustomizationSettings] = useState<CustomizationSettings>({
     logoUrl: '',
-    primaryColor: DEFAULT_CUSTOM_COLOR, 
+    primaryColor: DEFAULT_CUSTOM_COLOR,
   });
-  const [pageKey, setPageKey] = useState<string>(Date.now().toString());
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
-  const [isInitializing, setIsInitializing] = useState<boolean>(true);
 
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Navigation handler using React Router
-  const navigateTo = useCallback((page: Page) => {
-    if (!user) {
-      window.alert("Please sign in to use this feature.");
-      handleGoogleSignIn();
-      return;
+  const appBaseUrl = useMemo(() => {
+    if (import.meta.env.MODE === 'production') {
+      return `https://validly.pro`;
     }
-    switch (page) {
-      case 'home':
-        navigate('/');
-        break;
-      case 'validator':
-        navigate('/validator');
-        break;
-      case 'ingredient-analyser':
-        navigate('/ingredient-analyser');
-        break;
-      case 'ai-news-digest':
-        navigate('/ai-news-digest');
-        break;
-      case 'symptom-analyzer':
-        navigate('/symptom-analyzer');
-        break;
-      case 'community-forum':
-        navigate('/community-forum');
-        break;
-      case 'achievements':
-        navigate('/achievements');
-        break;
-      case 'quizzes':
-        navigate('/quizzes');
-        break;
-      case 'challenges':
-        navigate('/challenges');
-        break;
-      case 'competitor-monitoring':
-        navigate('/competitor-monitoring');
-        break;
-      case 'api-access':
-        navigate('/api-access');
-        break;
-      case 'support':
-        navigate('/support');
-        break;
-      case 'consumer-insights':
-        navigate('/consumer-insights');
-        break;
-      case 'compliance-assistant':
-        navigate('/compliance-assistant');
-        break;
-      case 'formulation-advisor':
-        navigate('/formulation-advisor');
-        break;
-      case 'pricing':
-        navigate('/pricing');
-        break;
-      case 'contact':
-        navigate('/contact');
-        break;
-      case 'terms-of-service':
-        navigate('/terms-of-service');
-        break;
-      default:
-        navigate('/');
-    }
-    setIsSidebarOpen(false);
-    window.scrollTo(0, 0);
-  }, [navigate, user]);
-
-  const openInfoModal = (title: string, message: string) => {
-    setInfoModalContent({ title, message });
-    setIsInfoModalOpen(true);
-  };
-
-  const closeInfoModal = () => {
-    setIsInfoModalOpen(false);
-  };
-
-  const handleExportPDF = useCallback(() => {
-    openInfoModal("Export PDF (Mock)", MOCK_PDF_MESSAGE);
+    return import.meta.env.VITE_APP_BASE_URL || `http://localhost:${window.location.port || '3000'}`;
   }, []);
 
-  const handleGenerateBadge = useCallback(() => {
-    openInfoModal("Generate Trust Badge (Mock)", MOCK_BADGE_MESSAGE);
-  }, []);
+  // ProtectedRoute component inside App to access session
+  const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+    const navigate = useNavigate();
+    const location = useLocation();
 
-  const handleExportDocx = useCallback(() => {
-    openInfoModal("Export as DOCX (Mock)", MOCK_DOCX_MESSAGE);
-  }, []);
-
-  const handleExportJson = useCallback(() => {
-    openInfoModal("Export Data (JSON) (Mock)", MOCK_JSON_EXPORT_MESSAGE);
-  }, []);
-
-  const handleReportGenerated = useCallback((report: ReportData) => {
-    setMyReports(prevReports => {
-      const newReportItem: MyReportItem = {
-        id: report.id,
-        claim: report.claim,
-        confidenceScore: report.confidenceScore,
-        timestamp: report.generatedTimestamp,
-        fullReportData: report,
-      };
-      const existingIds = new Set(prevReports.map(item => item.id));
-      if (existingIds.has(newReportItem.id)) { 
-        return prevReports.map(r => r.id === newReportItem.id ? newReportItem : r);
+    useEffect(() => {
+      if (!session) {
+        setPendingRedirectPath(location.pathname);
+        setIsSignInPromptOpen(true);
+        navigate('/', { replace: true });
       }
-      return [newReportItem, ...prevReports.slice(0, 9)]; 
-    });
-  }, []);
+    }, [session, navigate, location]);
 
-  const handleToggleMyReportsModal = () => {
-    setIsMyReportsModalOpen(prev => !prev);
+    if (!session) {
+      return null;
+    }
+
+    return <>{children}</>;
   };
 
-  const handleSelectMyReportItem = (reportData: ReportData) => {
-    setSelectedReportForView(reportData);
-    setInitialClaimForValidator(reportData.claim);
-    navigate('/validator');
-    setPageKey(Date.now().toString()); 
-    setIsMyReportsModalOpen(false);
-    setIsSidebarOpen(false); 
-  };
-  
-  const handleCustomizationChange = (settings: CustomizationSettings) => {
-    setCustomizationSettings(settings);
-  };
-
-  const toggleSidebar = useCallback(() => {
-    setIsSidebarOpen(prev => !prev);
-  }, []);
-
-  const closeSidebar = useCallback(() => {
-    setIsSidebarOpen(false);
-  }, []);
-
-  // Initialize auth state on app load
+  // Initialize auth state and listen for changes
   useEffect(() => {
+    let mounted = true;
+
     const initializeAuth = async () => {
       try {
-        console.log('Initializing auth state...');
-        const { data: { session }, error } = await supabase.auth.getSession();
+        const { data: { session: currentSession } } = await supabase.auth.getSession();
         
-        if (error) {
-          console.error('Error getting initial session:', error);
-        } else if (session?.user) {
-          console.log('Initial session found:', {
-            name: session.user.user_metadata?.full_name,
-            email: session.user.email,
-            avatar_url: session.user.user_metadata?.avatar_url
+        if (!mounted) return;
+
+        setSession(currentSession);
+        if (currentSession?.user) {
+          const supaUser = currentSession.user as SupabaseUser;
+          setAppUser({
+            id: supaUser.id,
+            name: supaUser.user_metadata?.full_name || supaUser.user_metadata?.name || supaUser.email?.split('@')[0] || 'User',
+            email: supaUser.email || '',
+            imageUrl: supaUser.user_metadata?.avatar_url || ''
           });
-          
-          setUser({
-            name: session.user.user_metadata?.full_name || '',
-            email: session.user.email || '',
-            imageUrl: session.user.user_metadata?.avatar_url || ''
-          });
-        } else {
-          console.log('No initial session found');
+
+          // Check for redirect after successful initial session load
+          const redirectPath = localStorage.getItem('redirectAfterSignIn');
+          if (redirectPath && redirectPath !== '/') {
+            localStorage.removeItem('redirectAfterSignIn');
+            navigate(redirectPath, { replace: true });
+          }
         }
       } catch (error) {
-        console.error('Error initializing auth:', error);
+        console.error("Error fetching initial session:", error);
       } finally {
-        setIsInitializing(false);
+        if (mounted) {
+          setIsInitializingAuth(false);
+        }
       }
     };
 
     initializeAuth();
-  }, []);
 
-  // Listen for auth state changes
-  useEffect(() => {
-    console.log('Setting up auth state listener...');
-    
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event: AuthChangeEvent, session: Session | null) => {
-      console.log('Auth state changed:', event, session ? 'User signed in' : 'No user');
-      
-      if (session?.user) {
-        console.log('User details:', {
-          name: session.user.user_metadata?.full_name,
-          email: session.user.email,
-          avatar_url: session.user.user_metadata?.avatar_url
-        });
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      async (_event: AuthChangeEvent, currentSession: Session | null) => {
+        if (!mounted) return;
+
+        console.log('Auth state changed:', _event);
+        setSession(currentSession);
         
-        setUser({
-          name: session.user.user_metadata?.full_name || '',
-          email: session.user.email || '',
-          imageUrl: session.user.user_metadata?.avatar_url || ''
-        });
-      } else {
-        console.log('User signed out, clearing user state');
-        setUser(null);
+        if (currentSession?.user) {
+          const supaUser = currentSession.user as SupabaseUser;
+          setAppUser({
+            id: supaUser.id,
+            name: supaUser.user_metadata?.full_name || supaUser.user_metadata?.name || supaUser.email?.split('@')[0] || 'User',
+            email: supaUser.email || '',
+            imageUrl: supaUser.user_metadata?.avatar_url || ''
+          });
+
+          // Handle redirect after successful sign in
+          if (_event === 'SIGNED_IN') {
+            const redirectPath = localStorage.getItem('redirectAfterSignIn');
+            console.log('Checking redirect path:', redirectPath);
+            if (redirectPath && redirectPath !== '/') {
+              console.log('Redirecting to:', redirectPath);
+              localStorage.removeItem('redirectAfterSignIn');
+              navigate(redirectPath, { replace: true });
+            }
+          }
+        } else {
+          setAppUser(null);
+        }
       }
-    });
+    );
 
     return () => {
-      console.log('Cleaning up auth state listener');
-      subscription.unsubscribe();
+      mounted = false;
+      authListener?.subscription.unsubscribe();
     };
-  }, []);
+  }, [navigate]);
 
   const handleGoogleSignIn = async () => {
-    console.log('Starting Google sign in process...');
-    try {
-      // Use the preferred redirect URL format (no trailing slash or hash)
-      const redirectUrl = 'https://validly.pro/auth/callback';
-      console.log('Redirect URL:', redirectUrl);
-      console.log('Current window location:', window.location.href);
-      console.log('Supabase URL:', import.meta.env.VITE_SUPABASE_URL);
-      
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: redirectUrl,
-          queryParams: {
-            access_type: 'offline',
-            prompt: 'consent',
-          },
-        }
-      });
+    const redirectUrl = `${appBaseUrl}/auth/callback`;
+    console.log('Initiating Google Sign In. Redirect URL:', redirectUrl);
 
-      if (error) {
-        console.error('Supabase OAuth error:', error);
-        console.error('Error details:', {
-          message: error.message,
-          status: error.status,
-          name: error.name
-        });
-        throw error;
-      }
-      
-      if (data?.url) {
-        console.log('Redirecting to:', data.url);
-        window.location.href = data.url;
-      } else {
-        console.error('No redirect URL received from Supabase');
-      }
-    } catch (error) {
-      console.error('Error during sign in:', error);
-      if (error instanceof Error) {
-        console.error('Unexpected error during sign-in:', {
-          message: error.message,
-          stack: error.stack
-        });
-      }
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: redirectUrl,
+        queryParams: {
+          access_type: 'offline',
+          prompt: 'consent',
+        },
+      },
+    });
+
+    if (error) {
+      console.error('Error during Supabase OAuth sign-in:', error.message);
+      alert(`Sign-in error: ${error.message}`);
     }
   };
 
   const handleGoogleSignOut = async () => {
-    console.log('Starting sign out process...');
-    try {
-      console.log('Calling Supabase signOut...');
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
-      
-      console.log('Sign out successful');
-      setUser(null);
-      console.log('User state cleared');
-    } catch (error) {
-      console.error('Error during sign out:', error);
+    console.log('Initiating Sign Out...');
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      console.error('Error during sign out:', error.message);
+      alert(`Sign-out error: ${error.message}`);
+    } else {
+      // onAuthStateChange will handle setting appUser to null
+      console.log('Sign out successful, navigating to home.');
+      navigate('/', { replace: true }); // Navigate to a public page after sign out
     }
   };
 
-  // Handle auth callback at the app level (before routing)
-  useEffect(() => {
-    const handleDirectAuthCallback = async () => {
-      // Check if we're on the auth callback path
-      if (location.pathname === '/auth/callback') {
-        console.log('Direct auth callback handling...');
-        
-        try {
-          // Handle hash fragment if present
-          if (window.location.hash.startsWith('#access_token')) {
-            const hashParams = new URLSearchParams(window.location.hash.slice(1));
-            const accessToken = hashParams.get('access_token');
-            const refreshToken = hashParams.get('refresh_token');
-            
-            if (accessToken) {
-              console.log('Setting session from hash params...');
-              const { data, error } = await supabase.auth.setSession({
-                access_token: accessToken,
-                refresh_token: refreshToken || ''
-              });
-              
-              if (error) {
-                console.error('Error setting session:', error);
-              } else {
-                console.log('Session set successfully');
-              }
-            }
-          }
-
-          // Wait for session to be established
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          
-          // Clean URL and navigate to home
-          window.history.replaceState({}, '', '/');
-          navigate('/', { replace: true });
-          
-        } catch (error) {
-          console.error('Error in direct auth callback:', error);
-          // Still navigate to home
-          window.history.replaceState({}, '', '/');
-          navigate('/', { replace: true });
-        }
-      }
+  const navigateTo = useCallback((page: Page) => {
+    // This navigation is now simpler; individual pages or a wrapper can handle auth checks
+    const pathMap: Record<Page, string> = {
+      'home': '/', 'validator': '/validator', 'ingredient-analyser': '/ingredient-analyser',
+      'ai-news-digest': '/ai-news-digest', 'symptom-analyzer': '/symptom-analyzer',
+      'community-forum': '/community-forum', 'achievements': '/achievements',
+      'quizzes': '/quizzes', 'challenges': '/challenges',
+      'competitor-monitoring': '/competitor-monitoring', 'api-access': '/api-access',
+      'support': '/support', 'consumer-insights': '/consumer-insights',
+      'compliance-assistant': '/compliance-assistant', 'formulation-advisor': '/formulation-advisor',
+      'pricing': '/pricing', 'contact': '/contact', 'terms-of-service': '/terms-of-service',
     };
+    navigate(pathMap[page] || '/');
+    setIsSidebarOpen(false); // Close sidebar on navigation
+  }, [navigate]);
 
-    if (!isInitializing) {
-      handleDirectAuthCallback();
-    }
-  }, [location.pathname, navigate, isInitializing]);
-
-  // Handle scroll to top on route changes
-  useEffect(() => {
+  useEffect(() => { // Scroll to top on navigation
     window.scrollTo(0, 0);
-  }, [location.pathname, pageKey]);
+  }, [location.pathname]);
 
-  // Show loading state while initializing or processing auth callback
-  if (isInitializing || location.pathname === '/auth/callback') {
+  // --- Modal and other UI handlers from your original App ---
+  const openInfoModal = (title: string, message: string) => {
+    setInfoModalContent({ title, message });
+    setIsInfoModalOpen(true);
+  };
+  const closeInfoModal = () => setIsInfoModalOpen(false);
+  const handleExportPDF = useCallback(() => openInfoModal("Export PDF (Mock)", MOCK_PDF_MESSAGE), []);
+  const handleGenerateBadge = useCallback(() => openInfoModal("Generate Trust Badge (Mock)", MOCK_BADGE_MESSAGE), []);
+  const handleExportDocx = useCallback(() => openInfoModal("Export as DOCX (Mock)", MOCK_DOCX_MESSAGE), []);
+  const handleExportJson = useCallback(() => openInfoModal("Export Data (JSON) (Mock)", MOCK_JSON_EXPORT_MESSAGE), []);
+  const handleReportGenerated = useCallback((report: ReportData) => {
+    setMyReports(prevReports => {
+      const newReportItem: MyReportItem = { id: report.id, claim: report.claim, confidenceScore: report.confidenceScore, timestamp: report.generatedTimestamp, fullReportData: report };
+      return [newReportItem, ...prevReports.filter(r => r.id !== report.id).slice(0, 9)];
+    });
+  }, []);
+  const handleToggleMyReportsModal = () => setIsMyReportsModalOpen(prev => !prev);
+  const handleSelectMyReportItem = (reportData: ReportData) => {
+    setSelectedReportForView(reportData);
+    setInitialClaimForValidator(reportData.claim);
+    navigate('/validator');
+    setIsMyReportsModalOpen(false);
+    setIsSidebarOpen(false);
+  };
+  const handleCustomizationChange = (settings: CustomizationSettings) => setCustomizationSettings(settings);
+  const toggleSidebar = useCallback(() => setIsSidebarOpen(prev => !prev), []);
+  const closeSidebar = useCallback(() => setIsSidebarOpen(false), []);
+  // --- End of Modal and other UI handlers ---
+
+  const handleSignInPrompt = () => {
+    setIsSignInPromptOpen(false);
+    handleGoogleSignIn();
+  };
+
+  const handleCloseSignInPrompt = () => {
+    setIsSignInPromptOpen(false);
+    setPendingRedirectPath(null);
+  };
+
+  if (isInitializingAuth) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-white">
-        <div className="text-center p-8 rounded-lg shadow-lg border border-blue-100" style={{ maxWidth: 340 }}>
-          <div className="flex justify-center mb-4">
-            {/* Healthcare icon (stethoscope) */}
-            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <circle cx="12" cy="12" r="12" fill="#e0f7fa" />
-              <path d="M8 10V14C8 16.2091 9.79086 18 12 18C14.2091 18 16 16.2091 16 14V10" stroke="#26a69a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M12 18V21" stroke="#26a69a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              <circle cx="12" cy="7" r="3" stroke="#26a69a" strokeWidth="2" />
-            </svg>
-          </div>
-          <h2 className="text-2xl font-bold text-blue-800 mb-2 font-sans">Validly Health</h2>
-          <p className="text-blue-700 mb-4 font-sans">
-            {location.pathname === '/auth/callback' ? 'Signing you in to your wellness dashboard...' : 'Loading your healthcare experience...'}
-          </p>
-          <div className="flex justify-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400"></div>
-          </div>
-        </div>
+        <LoadingSpinner message="Initializing application..." />
+      </div>
+    );
+  }
+
+  // The /auth/callback path is effectively handled by the onAuthStateChange listener,
+  // which should navigate away once the session is processed.
+  // If the user lands here and onAuthStateChange hasn't redirected them yet,
+  // showing a brief "processing" message is fine.
+  if (location.pathname === '/auth/callback' && !session) {
+     return (
+      <div className="flex items-center justify-center min-h-screen bg-white">
+        <LoadingSpinner message="Processing sign-in..." />
       </div>
     );
   }
 
   return (
-    <UserProgressProvider> 
+    <UserProgressProvider>
       <div className="flex flex-col min-h-screen bg-white font-sans">
-        <Header 
-          onToggleSidebar={toggleSidebar} 
-          isSidebarOpen={isSidebarOpen} 
+        <Header
+          user={appUser}
+          onSignIn={handleGoogleSignIn}
+          onSignOut={handleGoogleSignOut}
+          onToggleSidebar={toggleSidebar}
+          isSidebarOpen={isSidebarOpen}
           myReportsCount={myReports.length}
           onToggleMyReports={handleToggleMyReportsModal}
           navigateTo={navigateTo}
         />
-        <Sidebar 
-          isOpen={isSidebarOpen} 
-          onClose={closeSidebar} 
-          navigateTo={navigateTo} 
-          currentPage={(location.pathname.replace('/', '') || 'home') as Page}
+        <Sidebar
+          isOpen={isSidebarOpen}
+          onClose={closeSidebar}
+          navigateTo={navigateTo}
+          currentPage={(location.pathname.substring(1) || 'home') as Page}
         />
-        <main key={pageKey} className="flex-grow container mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-premium-slide-in-up">
+        <main className="flex-grow container mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-premium-slide-in-up">
           <Routes>
+            {/* Public routes */}
             <Route path="/" element={<HomePage navigateTo={navigateTo} myReportsCount={myReports.length} />} />
-            <Route path="/validator" element={<ValidatorPage 
-              onExportPDF={handleExportPDF} 
-              onGenerateBadge={handleGenerateBadge}
-              onExportDocx={handleExportDocx}
-              onExportJson={handleExportJson}
-              onReportGenerated={handleReportGenerated}
-              initialReport={selectedReportForView}
-              initialClaim={initialClaimForValidator}
-              customizationSettings={customizationSettings}
-              onCustomizationChange={handleCustomizationChange}
-            />} />
-            <Route path="/ingredient-analyser" element={<IngredientAnalyserPage />} />
-            <Route path="/ai-news-digest" element={<HealthcareNewsPage />} />
-            <Route path="/symptom-analyzer" element={<SymptomAnalyzerPage />} />
-            <Route path="/community-forum" element={<CommunityForumPage />} />
-            <Route path="/achievements" element={<AchievementsPage navigateTo={navigateTo}/>} />
-            <Route path="/quizzes" element={<QuizzesPage />} />
-            <Route path="/challenges" element={<ChallengesPage />} />
-            <Route path="/competitor-monitoring" element={<CompetitorMonitoringPage />} />
-            <Route path="/api-access" element={<ApiAccessPage />} />
-            <Route path="/support" element={<SupportPage />} />
-            <Route path="/consumer-insights" element={<ConsumerInsightsPage />} />
-            <Route path="/compliance-assistant" element={<ComplianceAssistantPage />} />
-            <Route path="/formulation-advisor" element={<FormulationAdvisorPage />} />
             <Route path="/pricing" element={<PricingPage />} />
             <Route path="/contact" element={<ContactPage />} />
             <Route path="/terms-of-service" element={<TermsPage />} />
+
+            {/* Protected routes */}
+            <Route path="/validator" element={
+              <ProtectedRoute>
+                <ValidatorPage
+                  onExportPDF={handleExportPDF}
+                  onGenerateBadge={handleGenerateBadge}
+                  onExportDocx={handleExportDocx}
+                  onExportJson={handleExportJson}
+                  onReportGenerated={handleReportGenerated}
+                  initialReport={selectedReportForView}
+                  initialClaim={initialClaimForValidator}
+                  customizationSettings={customizationSettings}
+                  onCustomizationChange={handleCustomizationChange}
+                />
+              </ProtectedRoute>
+            } />
+            <Route path="/ingredient-analyser" element={
+              <ProtectedRoute>
+                <IngredientAnalyserPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/ai-news-digest" element={
+              <ProtectedRoute>
+                <HealthcareNewsPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/symptom-analyzer" element={
+              <ProtectedRoute>
+                <SymptomAnalyzerPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/community-forum" element={
+              <ProtectedRoute>
+                <CommunityForumPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/achievements" element={
+              <ProtectedRoute>
+                <AchievementsPage navigateTo={navigateTo} />
+              </ProtectedRoute>
+            } />
+            <Route path="/quizzes" element={
+              <ProtectedRoute>
+                <QuizzesPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/challenges" element={
+              <ProtectedRoute>
+                <ChallengesPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/competitor-monitoring" element={
+              <ProtectedRoute>
+                <CompetitorMonitoringPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/api-access" element={
+              <ProtectedRoute>
+                <ApiAccessPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/support" element={
+              <ProtectedRoute>
+                <SupportPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/consumer-insights" element={
+              <ProtectedRoute>
+                <ConsumerInsightsPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/compliance-assistant" element={
+              <ProtectedRoute>
+                <ComplianceAssistantPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/formulation-advisor" element={
+              <ProtectedRoute>
+                <FormulationAdvisorPage />
+              </ProtectedRoute>
+            } />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>
         <Footer navigateTo={navigateTo} />
         <Modal isOpen={isInfoModalOpen} onClose={closeInfoModal} title={infoModalContent.title}>
           <p>{infoModalContent.message}</p>
+        </Modal>
+        <Modal 
+          isOpen={isSignInPromptOpen} 
+          onClose={handleCloseSignInPrompt} 
+          title="Sign In Required"
+        >
+          <div className="text-center">
+            <p className="mb-4 text-gray-700">
+              Please sign in to access this feature. Sign in to continue to:
+              <br />
+              <span className="font-semibold text-brand-premium-blue">
+                {pendingRedirectPath?.split('/').pop()?.replace(/-/g, ' ').toUpperCase()}
+              </span>
+            </p>
+            <div className="flex justify-center space-x-4">
+              <button
+                onClick={handleSignInPrompt}
+                className="px-6 py-2 text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+              >
+                Sign In
+              </button>
+              <button
+                onClick={handleCloseSignInPrompt}
+                className="px-6 py-2 text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
         </Modal>
         <MyReportsModal
           isOpen={isMyReportsModalOpen}
