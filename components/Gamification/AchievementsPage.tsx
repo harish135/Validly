@@ -121,20 +121,8 @@ const AchievementsPage: React.FC<AchievementsPageProps> = ({ navigateTo }) => {
   }
   displayLeaderboard.sort((a, b) => b.score - a.score);
 
-  // Prepare leaderboard to show: top 5, and current user if not in top 5
-  const top5 = displayLeaderboard.slice(0, 5);
-  const isCurrentUserInTop5 = top5.some(e => e.isCurrentUser);
-  let leaderboardToShow = top5;
-  if (!isCurrentUserInTop5 && points > 0) {
-    const currentUserEntry = displayLeaderboard.find(e => e.isCurrentUser);
-    if (currentUserEntry) {
-      leaderboardToShow = [
-        ...top5,
-        { id: 'separator', userName: '...', userEmail: '', avatarUrl: '', score: -1, isCurrentUser: false },
-        currentUserEntry,
-      ];
-    }
-  }
+  // Only show top 5 users
+  const leaderboardToShow = displayLeaderboard.slice(0, 5);
 
   return (
     <Section 
@@ -181,29 +169,25 @@ const AchievementsPage: React.FC<AchievementsPageProps> = ({ navigateTo }) => {
           ) : leaderboardToShow.length > 0 ? (
             <div className="bg-brand-gray-800 p-4 rounded-lg shadow-md border border-brand-gray-700">
               <ol className="space-y-3">
-                {leaderboardToShow.map((entry, index) => (
-                  entry.id === 'separator' ? (
-                    <li key="separator" className="text-center text-gray-400">...</li>
-                  ) : (
-                    <li 
-                      key={entry.id} 
-                      className={`flex justify-between items-center p-3 rounded-md transition-all
-                                  ${entry.isCurrentUser ? 'bg-brand-premium-blue text-white shadow-lg scale-105' : 'bg-brand-gray-700 hover:bg-brand-gray-600'}`}
-                    >
-                      <div className="flex items-center">
-                        {entry.avatarUrl && (
-                          <img src={entry.avatarUrl} alt={entry.userName} className="w-8 h-8 rounded-full mr-3 border-2 border-brand-premium-blue" />
-                        )}
-                        <div>
-                          <span className={`font-semibold w-6 text-center ${entry.isCurrentUser ? 'text-blue-100' : 'text-brand-gray-400'}`}>{displayLeaderboard.findIndex(e => e.id === entry.id) + 1}.</span>
-                          <span className={`ml-2 font-medium ${entry.isCurrentUser ? 'text-white' : 'text-brand-gray-200'}`}>
-                            {entry.isCurrentUser ? 'You' : entry.userName}
-                          </span>
-                        </div>
+                {leaderboardToShow.map((entry) => (
+                  <li 
+                    key={entry.id} 
+                    className={`flex justify-between items-center p-3 rounded-md transition-all
+                                ${entry.isCurrentUser ? 'bg-brand-premium-blue text-white shadow-lg scale-105' : 'bg-brand-gray-700 hover:bg-brand-gray-600'}`}
+                  >
+                    <div className="flex items-center">
+                      {entry.avatarUrl && (
+                        <img src={entry.avatarUrl} alt={entry.userName} className="w-8 h-8 rounded-full mr-3 border-2 border-brand-premium-blue" />
+                      )}
+                      <div>
+                        <span className={`font-semibold w-6 text-center ${entry.isCurrentUser ? 'text-blue-100' : 'text-brand-gray-400'}`}>{displayLeaderboard.findIndex(e => e.id === entry.id) + 1}.</span>
+                        <span className={`ml-2 font-medium ${entry.isCurrentUser ? 'text-white' : 'text-brand-gray-200'}`}>
+                          {entry.isCurrentUser ? 'You' : entry.userName}
+                        </span>
                       </div>
-                      <span className={`font-bold ${entry.isCurrentUser ? 'text-yellow-300' : 'text-brand-premium-blue'}`}>{entry.score} pts</span>
-                    </li>
-                  )
+                    </div>
+                    <span className={`font-bold ${entry.isCurrentUser ? 'text-yellow-300' : 'text-brand-premium-blue'}`}>{entry.score} pts</span>
+                  </li>
                 ))}
               </ol>
               <p className="text-xs text-brand-gray-500 mt-3 text-center">
