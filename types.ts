@@ -297,7 +297,9 @@ export interface LeaderboardEntry {
   id: string;
   userName: string;
   score: number;
-  isCurrentUser?: boolean; 
+  isCurrentUser?: boolean;
+  userEmail?: string;
+  avatarUrl?: string;
 }
 
 export type GeminiLeaderboardEntrySeed = Omit<LeaderboardEntry, 'id' | 'isCurrentUser'>;
