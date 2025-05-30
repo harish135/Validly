@@ -11,6 +11,7 @@ import ValidatorPage from './components/ValidatorPage/ValidatorPage';
 import Modal from './components/Modal';
 import MyReportsModal from './components/MyReportsModal';
 import Sidebar from './components/Sidebar';
+import ProtectedRoute from './components/ProtectedRoute';
 import { MOCK_PDF_MESSAGE, MOCK_BADGE_MESSAGE, DEFAULT_CUSTOM_COLOR, MOCK_DOCX_MESSAGE, MOCK_JSON_EXPORT_MESSAGE } from './constants';
 import type { ReportData, MyReportItem, CustomizationSettings } from './types';
 import { UserProgressProvider } from './contexts/UserProgressContext';
@@ -35,40 +36,23 @@ import ChallengesPage from './components/Gamification/ChallengesPage';
 import PricingPage from './components/StaticPages/PricingPage';
 import ContactPage from './components/StaticPages/ContactPage';
 import TermsPage from './components/StaticPages/TermsPage';
-import LoadingSpinner from './components/LoadingSpinner'; // Assuming you have this component
+import LoadingSpinner from './components/LoadingSpinner';
 
-
-// Add type for ImportMeta to satisfy TypeScript
 interface ImportMeta {
   readonly env: {
     readonly VITE_SUPABASE_URL: string;
     readonly VITE_SUPABASE_ANON_KEY: string;
-    readonly VITE_APP_BASE_URL?: string; // Optional for production, required for local dev redirect
+    readonly VITE_APP_BASE_URL?: string;
     readonly MODE: 'development' | 'production' | string;
   };
 }
 
 export type Page =
-  | 'home'
-  | 'validator'
-  | 'ingredient-analyser'
-  | 'ai-news-digest'
-  | 'symptom-analyzer'
-  | 'community-forum'
-  | 'achievements'
-  | 'quizzes'
-  | 'challenges'
-  | 'competitor-monitoring'
-  | 'api-access'
-  | 'support'
-  | 'consumer-insights'
-  | 'compliance-assistant'
-  | 'formulation-advisor'
-  | 'pricing'
-  | 'contact'
-  | 'terms-of-service';
+  | 'home' | 'validator' | 'ingredient-analyser' | 'ai-news-digest' | 'symptom-analyzer'
+  | 'community-forum' | 'achievements' | 'quizzes' | 'challenges'
+  | 'competitor-monitoring' | 'api-access' | 'support' | 'consumer-insights'
+  | 'compliance-assistant' | 'formulation-advisor' | 'pricing' | 'contact' | 'terms-of-service';
 
-// Define a more specific type for your app's user state, derived from SupabaseUser
 export interface AppUser {
   id: string;
   name: string;
@@ -93,6 +77,7 @@ const App: React.FC = () => {
     primaryColor: DEFAULT_CUSTOM_COLOR,
   });
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
+  const [userUsage, setUserUsage] = useState<{ triesLeft: string | number } | null>(null);
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -104,86 +89,58 @@ const App: React.FC = () => {
     return import.meta.env.VITE_APP_BASE_URL || `http://localhost:${window.location.port || '3000'}`;
   }, []);
 
-  // ProtectedRoute component inside App to access session
-  const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const navigate = useNavigate();
-    const location = useLocation();
-
-    useEffect(() => {
-      if (!session) {
-        setPendingRedirectPath(location.pathname);
-        setIsSignInPromptOpen(true);
-        navigate('/', { replace: true });
-      }
-    }, [session, navigate, location]);
-
-    if (!session) {
-      return null;
-    }
-
-    return <>{children}</>;
-  };
-
-  // Initialize auth state and listen for changes
   useEffect(() => {
     let mounted = true;
-
+    console.log("App: Initializing Auth Effect Mounts");
     const initializeAuth = async () => {
       try {
         const { data: { session: currentSession } } = await supabase.auth.getSession();
-        
-        if (!mounted) return;
-
+        if (!mounted) { console.log("App: Auth init, but unmounted early."); return; }
+        console.log("App: Initial session fetched:", currentSession ? 'Exists' : 'null');
         setSession(currentSession);
         if (currentSession?.user) {
-          const supaUser = currentSession.user as SupabaseUser;
+          const supaUser = currentSession.user;
           setAppUser({
             id: supaUser.id,
             name: supaUser.user_metadata?.full_name || supaUser.user_metadata?.name || supaUser.email?.split('@')[0] || 'User',
             email: supaUser.email || '',
             imageUrl: supaUser.user_metadata?.avatar_url || ''
           });
-
-          // Check for redirect after successful initial session load
           const redirectPath = localStorage.getItem('redirectAfterSignIn');
           if (redirectPath && redirectPath !== '/') {
             localStorage.removeItem('redirectAfterSignIn');
+            console.log("App: Initial session, redirecting to stored path:", redirectPath);
             navigate(redirectPath, { replace: true });
           }
         }
       } catch (error) {
-        console.error("Error fetching initial session:", error);
+        console.error("App: Error fetching initial session:", error);
       } finally {
         if (mounted) {
+          console.log("App: Initializing Auth Finished.");
           setIsInitializingAuth(false);
         }
       }
     };
-
     initializeAuth();
-
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (_event: AuthChangeEvent, currentSession: Session | null) => {
-        if (!mounted) return;
-
-        console.log('Auth state changed:', _event);
+        if (!mounted) { console.log("App: onAuthStateChange, but unmounted."); return; }
+        console.log('App: onAuthStateChange event:', _event, 'Session:', currentSession ? 'Exists' : 'null');
         setSession(currentSession);
-        
         if (currentSession?.user) {
-          const supaUser = currentSession.user as SupabaseUser;
+          const supaUser = currentSession.user;
           setAppUser({
             id: supaUser.id,
             name: supaUser.user_metadata?.full_name || supaUser.user_metadata?.name || supaUser.email?.split('@')[0] || 'User',
             email: supaUser.email || '',
             imageUrl: supaUser.user_metadata?.avatar_url || ''
           });
-
-          // Handle redirect after successful sign in
-          if (_event === 'SIGNED_IN') {
+          if (_event === 'SIGNED_IN' || _event === 'TOKEN_REFRESHED' || _event === 'USER_UPDATED') {
             const redirectPath = localStorage.getItem('redirectAfterSignIn');
-            console.log('Checking redirect path:', redirectPath);
+            console.log('App: onAuthStateChange SIGNED_IN/REFRESHED/UPDATED, checking redirect path:', redirectPath);
             if (redirectPath && redirectPath !== '/') {
-              console.log('Redirecting to:', redirectPath);
+              console.log('App: Redirecting to (from onAuthStateChange):', redirectPath);
               localStorage.removeItem('redirectAfterSignIn');
               navigate(redirectPath, { replace: true });
             }
@@ -193,50 +150,74 @@ const App: React.FC = () => {
         }
       }
     );
-
     return () => {
       mounted = false;
+      console.log("App: Initializing Auth Effect Unmounts");
       authListener?.subscription.unsubscribe();
     };
   }, [navigate]);
 
-  const handleGoogleSignIn = async () => {
-    const redirectUrl = `${appBaseUrl}/auth/callback`;
-    console.log('Initiating Google Sign In. Redirect URL:', redirectUrl);
+  useEffect(() => {
+    let mounted = true;
+    const fetchUserUsage = async () => {
+      if (appUser && mounted) {
+        console.log('App: Fetching user usage for appUser ID:', appUser.id);
+        try {
+          const { data, error } = await supabase.rpc('get_user_plan_and_usage', { p_user_id: appUser.id });
+          if (!mounted) { console.log("App: fetchUserUsage, but unmounted before setting state."); return; }
+          console.log('App: Fetched user plan/usage RPC result:', { data, error });
+          if (error) {
+            console.error('App: Error fetching user usage:', error);
+            setUserUsage(null); return;
+          }
+          if (data && data.length > 0) {
+            const usage = data[0];
+            const newTriesLeft = usage.is_unlimited ? 'Unlimited' : usage.requests_remaining;
+            console.log('App: Setting triesLeft (from fetchUserUsage):', newTriesLeft);
+            setUserUsage({ triesLeft: newTriesLeft });
+          } else {
+            console.warn('App: No usage data returned for user from RPC.');
+            setUserUsage(null);
+          }
+        } catch(rpcError) {
+            console.error('App: Exception during fetchUserUsage RPC call:', rpcError);
+            if (mounted) setUserUsage(null);
+        }
+      } else if (!appUser) {
+        console.log('App: No appUser, clearing userUsage and not fetching.');
+        setUserUsage(null);
+      }
+    };
+    fetchUserUsage();
+    return () => { mounted = false; }
+  }, [appUser]);
 
+  const handleGoogleSignIn = async () => {
+    const currentPathForRedirect = location.pathname === '/' ? '/validator' : location.pathname;
+    localStorage.setItem('redirectAfterSignIn', currentPathForRedirect);
+    console.log('App: Stored redirectAfterSignIn:', currentPathForRedirect);
+    const redirectUrl = `${appBaseUrl}/auth/callback`;
+    console.log('App: Initiating Google Sign In. OAuth Redirect URL:', redirectUrl);
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: {
-        redirectTo: redirectUrl,
-        queryParams: {
-          access_type: 'offline',
-          prompt: 'consent',
-        },
-      },
+      options: { redirectTo: redirectUrl, queryParams: { access_type: 'offline', prompt: 'consent' } },
     });
-
-    if (error) {
-      console.error('Error during Supabase OAuth sign-in:', error.message);
-      alert(`Sign-in error: ${error.message}`);
-    }
+    if (error) console.error('App: Error during Supabase OAuth sign-in:', error.message);
   };
 
   const handleGoogleSignOut = async () => {
-    if (!session) {
-      alert('You are already signed out.');
-      return;
-    }
+    console.log('App: Handling Google Sign Out.');
     const { error } = await supabase.auth.signOut();
-    if (error) {
-      alert(`Sign-out error: ${error.message}`);
-    } else {
-      // onAuthStateChange will handle setting appUser to null
+    if (error) console.error(`App: Sign-out error: ${error.message}`);
+    else {
+      setInitialClaimForValidator("");
+      setSelectedReportForView(null);
+      console.log('App: Navigating to / after sign out.');
       navigate('/', { replace: true });
     }
   };
 
   const navigateTo = useCallback((page: Page) => {
-    // This navigation is now simpler; individual pages or a wrapper can handle auth checks
     const pathMap: Record<Page, string> = {
       'home': '/', 'validator': '/validator', 'ingredient-analyser': '/ingredient-analyser',
       'ai-news-digest': '/ai-news-digest', 'symptom-analyzer': '/symptom-analyzer',
@@ -247,32 +228,34 @@ const App: React.FC = () => {
       'compliance-assistant': '/compliance-assistant', 'formulation-advisor': '/formulation-advisor',
       'pricing': '/pricing', 'contact': '/contact', 'terms-of-service': '/terms-of-service',
     };
-    navigate(pathMap[page] || '/');
-    setIsSidebarOpen(false); // Close sidebar on navigation
+    const targetPath = pathMap[page] || '/';
+    console.log(`App: Navigating to page: ${page}, path: ${targetPath}`);
+    navigate(targetPath);
+    setIsSidebarOpen(false);
   }, [navigate]);
 
-  useEffect(() => { // Scroll to top on navigation
-    window.scrollTo(0, 0);
-  }, [location.pathname]);
+  useEffect(() => { window.scrollTo(0, 0); }, [location.pathname]);
 
-  // --- Modal and other UI handlers from your original App ---
-  const openInfoModal = (title: string, message: string) => {
-    setInfoModalContent({ title, message });
-    setIsInfoModalOpen(true);
-  };
+  const openInfoModal = (title: string, message: string) => { setInfoModalContent({ title, message }); setIsInfoModalOpen(true); };
   const closeInfoModal = () => setIsInfoModalOpen(false);
   const handleExportPDF = useCallback(() => openInfoModal("Export PDF (Mock)", MOCK_PDF_MESSAGE), []);
   const handleGenerateBadge = useCallback(() => openInfoModal("Generate Trust Badge (Mock)", MOCK_BADGE_MESSAGE), []);
   const handleExportDocx = useCallback(() => openInfoModal("Export as DOCX (Mock)", MOCK_DOCX_MESSAGE), []);
   const handleExportJson = useCallback(() => openInfoModal("Export Data (JSON) (Mock)", MOCK_JSON_EXPORT_MESSAGE), []);
+
   const handleReportGenerated = useCallback((report: ReportData) => {
+    console.log("App: handleReportGenerated called with report ID:", report.id);
     setMyReports(prevReports => {
       const newReportItem: MyReportItem = { id: report.id, claim: report.claim, confidenceScore: report.confidenceScore, timestamp: report.generatedTimestamp, fullReportData: report };
-      return [newReportItem, ...prevReports.filter(r => r.id !== report.id).slice(0, 9)];
+      const updatedReports = [newReportItem, ...prevReports.filter(r => r.id !== report.id).slice(0, 9)];
+      console.log("App: myReports state updated. New count:", updatedReports.length);
+      return updatedReports;
     });
   }, []);
+
   const handleToggleMyReportsModal = () => setIsMyReportsModalOpen(prev => !prev);
   const handleSelectMyReportItem = (reportData: ReportData) => {
+    console.log("App: handleSelectMyReportItem, report ID:", reportData.id, "Claim:", reportData.claim);
     setSelectedReportForView(reportData);
     setInitialClaimForValidator(reportData.claim);
     navigate('/validator');
@@ -282,19 +265,33 @@ const App: React.FC = () => {
   const handleCustomizationChange = (settings: CustomizationSettings) => setCustomizationSettings(settings);
   const toggleSidebar = useCallback(() => setIsSidebarOpen(prev => !prev), []);
   const closeSidebar = useCallback(() => setIsSidebarOpen(false), []);
-  // --- End of Modal and other UI handlers ---
 
   const handleSignInPrompt = () => {
     setIsSignInPromptOpen(false);
     handleGoogleSignIn();
   };
-
   const handleCloseSignInPrompt = () => {
     setIsSignInPromptOpen(false);
     setPendingRedirectPath(null);
   };
 
+  const validatorPageProps = useMemo(() => {
+    console.log("App: Recalculating validatorPageProps. initialClaimForValidator:", initialClaimForValidator, "selectedReportForView:", selectedReportForView ? 'Exists' : 'null');
+    return {
+      onExportPDF: handleExportPDF, onGenerateBadge: handleGenerateBadge,
+      onExportDocx: handleExportDocx, onExportJson: handleExportJson,
+      onReportGenerated: handleReportGenerated,
+      initialReport: selectedReportForView, initialClaim: initialClaimForValidator,
+      customizationSettings, onCustomizationChange: handleCustomizationChange
+    };
+  }, [
+    selectedReportForView, initialClaimForValidator, customizationSettings,
+    handleExportPDF, handleGenerateBadge, handleExportDocx, handleExportJson,
+    handleReportGenerated, handleCustomizationChange
+  ]);
+
   if (isInitializingAuth) {
+    console.log("App: Rendering LoadingSpinner (isInitializingAuth is true)");
     return (
       <div className="flex items-center justify-center min-h-screen bg-white">
         <LoadingSpinner message="Initializing application..." />
@@ -302,124 +299,159 @@ const App: React.FC = () => {
     );
   }
 
-  // The /auth/callback path is effectively handled by the onAuthStateChange listener,
-  // which should navigate away once the session is processed.
-  // If the user lands here and onAuthStateChange hasn't redirected them yet,
-  // showing a brief "processing" message is fine.
-  if (location.pathname === '/auth/callback' && !session) {
+  if (location.pathname === '/auth/callback' && !session && isInitializingAuth) {
+    console.log("App: Rendering LoadingSpinner (/auth/callback, no session, still initializing)");
      return (
       <div className="flex items-center justify-center min-h-screen bg-white">
         <LoadingSpinner message="Processing sign-in..." />
       </div>
     );
   }
+  console.log("App: Proceeding to render main application structure. Session exists:", !!session);
 
   return (
     <AppUserProvider user={appUser}>
       <UserProgressProvider>
-        <div className="flex flex-col min-h-screen bg-white font-sans">
+        <div className="flex flex-col min-h-screen bg-white font-sans"> {/* Main app wrapper div */}
           <Header
-            user={appUser}
-            onSignIn={handleGoogleSignIn}
-            onSignOut={handleGoogleSignOut}
-            onToggleSidebar={toggleSidebar}
-            isSidebarOpen={isSidebarOpen}
-            myReportsCount={myReports.length}
-            onToggleMyReports={handleToggleMyReportsModal}
-            navigateTo={navigateTo}
+            user={appUser} onSignIn={handleGoogleSignIn} onSignOut={handleGoogleSignOut}
+            onToggleSidebar={toggleSidebar} isSidebarOpen={isSidebarOpen}
+            myReportsCount={myReports.length} onToggleMyReports={handleToggleMyReportsModal}
+            navigateTo={navigateTo} triesLeft={userUsage ? userUsage.triesLeft : null}
           />
           <Sidebar
-            isOpen={isSidebarOpen}
-            onClose={closeSidebar}
-            navigateTo={navigateTo}
+            isOpen={isSidebarOpen} onClose={closeSidebar} navigateTo={navigateTo}
             currentPage={(location.pathname.substring(1) || 'home') as Page}
           />
           <main className="flex-grow container mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-premium-slide-in-up">
             <Routes>
-              {/* Public routes */}
               <Route path="/" element={<HomePage navigateTo={navigateTo} myReportsCount={myReports.length} />} />
               <Route path="/pricing" element={<PricingPage />} />
               <Route path="/contact" element={<ContactPage />} />
               <Route path="/terms-of-service" element={<TermsPage />} />
-
-              {/* Protected routes */}
               <Route path="/validator" element={
-                <ProtectedRoute>
-                  <ValidatorPage
-                    onExportPDF={handleExportPDF}
-                    onGenerateBadge={handleGenerateBadge}
-                    onExportDocx={handleExportDocx}
-                    onExportJson={handleExportJson}
-                    onReportGenerated={handleReportGenerated}
-                    initialReport={selectedReportForView}
-                    initialClaim={initialClaimForValidator}
-                    customizationSettings={customizationSettings}
-                    onCustomizationChange={handleCustomizationChange}
-                  />
+                <ProtectedRoute
+                  session={session}
+                  setPendingRedirectPath={setPendingRedirectPath}
+                  setIsSignInPromptOpen={setIsSignInPromptOpen}
+                >
+                  <ValidatorPage {...validatorPageProps} />
                 </ProtectedRoute>
               } />
               <Route path="/ingredient-analyser" element={
-                <ProtectedRoute>
+                <ProtectedRoute
+                  session={session}
+                  setPendingRedirectPath={setPendingRedirectPath}
+                  setIsSignInPromptOpen={setIsSignInPromptOpen}
+                >
                   <IngredientAnalyserPage />
                 </ProtectedRoute>
               } />
               <Route path="/ai-news-digest" element={
-                <ProtectedRoute>
+                <ProtectedRoute
+                  session={session}
+                  setPendingRedirectPath={setPendingRedirectPath}
+                  setIsSignInPromptOpen={setIsSignInPromptOpen}
+                >
                   <HealthcareNewsPage />
                 </ProtectedRoute>
               } />
               <Route path="/symptom-analyzer" element={
-                <ProtectedRoute>
+                <ProtectedRoute
+                  session={session}
+                  setPendingRedirectPath={setPendingRedirectPath}
+                  setIsSignInPromptOpen={setIsSignInPromptOpen}
+                >
                   <SymptomAnalyzerPage />
                 </ProtectedRoute>
               } />
               <Route path="/community-forum" element={
-                <ProtectedRoute>
+                <ProtectedRoute
+                  session={session}
+                  setPendingRedirectPath={setPendingRedirectPath}
+                  setIsSignInPromptOpen={setIsSignInPromptOpen}
+                >
                   <CommunityForumPage />
                 </ProtectedRoute>
               } />
               <Route path="/achievements" element={
-                <ProtectedRoute>
+                <ProtectedRoute
+                  session={session}
+                  setPendingRedirectPath={setPendingRedirectPath}
+                  setIsSignInPromptOpen={setIsSignInPromptOpen}
+                >
                   <AchievementsPage navigateTo={navigateTo} />
                 </ProtectedRoute>
               } />
               <Route path="/quizzes" element={
-                <ProtectedRoute>
+                <ProtectedRoute
+                  session={session}
+                  setPendingRedirectPath={setPendingRedirectPath}
+                  setIsSignInPromptOpen={setIsSignInPromptOpen}
+                >
                   <QuizzesPage />
                 </ProtectedRoute>
               } />
               <Route path="/challenges" element={
-                <ProtectedRoute>
+                <ProtectedRoute
+                  session={session}
+                  setPendingRedirectPath={setPendingRedirectPath}
+                  setIsSignInPromptOpen={setIsSignInPromptOpen}
+                >
                   <ChallengesPage />
                 </ProtectedRoute>
               } />
               <Route path="/competitor-monitoring" element={
-                <ProtectedRoute>
+                <ProtectedRoute
+                  session={session}
+                  setPendingRedirectPath={setPendingRedirectPath}
+                  setIsSignInPromptOpen={setIsSignInPromptOpen}
+                >
                   <CompetitorMonitoringPage />
                 </ProtectedRoute>
               } />
               <Route path="/api-access" element={
-                <ProtectedRoute>
+                <ProtectedRoute
+                  session={session}
+                  setPendingRedirectPath={setPendingRedirectPath}
+                  setIsSignInPromptOpen={setIsSignInPromptOpen}
+                >
                   <ApiAccessPage />
                 </ProtectedRoute>
               } />
               <Route path="/support" element={
-                <ProtectedRoute>
+                <ProtectedRoute
+                  session={session}
+                  setPendingRedirectPath={setPendingRedirectPath}
+                  setIsSignInPromptOpen={setIsSignInPromptOpen}
+                >
                   <SupportPage />
                 </ProtectedRoute>
               } />
               <Route path="/consumer-insights" element={
-                <ProtectedRoute>
+                <ProtectedRoute
+                  session={session}
+                  setPendingRedirectPath={setPendingRedirectPath}
+                  setIsSignInPromptOpen={setIsSignInPromptOpen}
+                >
                   <ConsumerInsightsPage />
                 </ProtectedRoute>
               } />
               <Route path="/compliance-assistant" element={
-                <ProtectedRoute>
+                <ProtectedRoute
+                  session={session}
+                  setPendingRedirectPath={setPendingRedirectPath}
+                  setIsSignInPromptOpen={setIsSignInPromptOpen}
+                >
                   <ComplianceAssistantPage />
                 </ProtectedRoute>
               } />
               <Route path="/formulation-advisor" element={
-                <ProtectedRoute>
+                <ProtectedRoute
+                  session={session}
+                  setPendingRedirectPath={setPendingRedirectPath}
+                  setIsSignInPromptOpen={setIsSignInPromptOpen}
+                >
                   <FormulationAdvisorPage />
                 </ProtectedRoute>
               } />
@@ -427,9 +459,12 @@ const App: React.FC = () => {
             </Routes>
           </main>
           <Footer navigateTo={navigateTo} />
+
+          {/* Modals are direct children of the main app wrapper div */}
           <Modal isOpen={isInfoModalOpen} onClose={closeInfoModal} title={infoModalContent.title}>
             <p>{infoModalContent.message}</p>
-          </Modal>
+          </Modal> {/* Corrected closing tag */}
+
           <Modal 
             isOpen={isSignInPromptOpen} 
             onClose={handleCloseSignInPrompt} 
@@ -444,28 +479,19 @@ const App: React.FC = () => {
                 </span>
               </p>
               <div className="flex justify-center space-x-4">
-                <button
-                  onClick={handleSignInPrompt}
-                  className="px-6 py-2 text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                >
-                  Sign In
-                </button>
-                <button
-                  onClick={handleCloseSignInPrompt}
-                  className="px-6 py-2 text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
-                >
-                  Cancel
-                </button>
+                <button onClick={handleSignInPrompt} className="px-6 py-2 text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">Sign In</button>
+                <button onClick={handleCloseSignInPrompt} className="px-6 py-2 text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2">Cancel</button>
               </div>
             </div>
           </Modal>
+
           <MyReportsModal
             isOpen={isMyReportsModalOpen}
             onClose={handleToggleMyReportsModal}
             myReportItems={myReports}
             onSelectMyReportItem={handleSelectMyReportItem}
           />
-        </div>
+        </div> {/* Closing tag for main app wrapper div */}
       </UserProgressProvider>
     </AppUserProvider>
   );

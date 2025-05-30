@@ -15,6 +15,7 @@ interface HeaderProps {
   myReportsCount: number;
   onToggleMyReports: () => void;
   navigateTo: (page: Page) => void;
+  triesLeft?: string | number | null;
 }
 
 export const ValidlyLogo: React.FC<{ className?: string }> = ({ className = "h-20 w-auto" }) => (
@@ -33,6 +34,7 @@ const Header: React.FC<HeaderProps> = ({
   myReportsCount, 
   onToggleMyReports, 
   navigateTo,
+  triesLeft
 }) => {
   return (
     <header className="bg-brand-gray-900 shadow-premium sticky top-0 z-40 border-b border-brand-gray-700">
@@ -91,9 +93,12 @@ const Header: React.FC<HeaderProps> = ({
                     className="h-8 w-8 rounded-full"
                   />
                 )}
-                {/* <span className="text-white text-sm font-medium">
-                  {user.name ? user.name.charAt(0).toUpperCase() : ''}
-                </span> */}
+                {/* Show tries left if available */}
+                {triesLeft !== null && triesLeft !== undefined && (
+                  <span className="text-xs text-brand-premium-blue ml-2">
+                    {triesLeft === 'Unlimited' ? 'Unlimited' : `Tries left: ${triesLeft}`}
+                  </span>
+                )}
                 <button
                   onClick={onSignOut}
                   className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"

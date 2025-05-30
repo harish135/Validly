@@ -1,5 +1,3 @@
-
-
 import React from 'react';
 import type { ReportData, CustomizationSettings } from '../types';
 import { CONFIDENCE_COLORS, CONFIDENCE_TEXT_COLORS } from '../constants';
@@ -72,6 +70,7 @@ const InsightSnapshotItem: React.FC<{icon: React.ReactNode, title: string, conte
 
 
 const ReportDisplay: React.FC<ReportDisplayProps> = ({ report, customizationSettings, onExportPDF, onGenerateBadge, onExportDocx, onExportJson }) => {
+  console.log('Rendering ReportDisplay with report:', report);
   const confidenceStyle = CONFIDENCE_COLORS[report.confidenceScore] || CONFIDENCE_COLORS.Undetermined;
   const confidenceGeneralTextColor = CONFIDENCE_TEXT_COLORS[report.confidenceScore] || CONFIDENCE_TEXT_COLORS.Undetermined;
 

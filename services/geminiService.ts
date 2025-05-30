@@ -1,5 +1,3 @@
-
-
 import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
 import type { 
   ReportData, 
@@ -39,14 +37,19 @@ import type {
 import { GEMINI_MODEL_NAME } from '../constants';
 
 const ai = new GoogleGenAI({ 
-  apiKey: process.env.API_KEY 
+  apiKey: process.env.API_KEY || ''
 });
 
 const generateId = () => Math.random().toString(36).substr(2, 9);
 
 const checkApiKey = (): boolean => {
-  if (!process.env.API_KEY) {
+  const apiKey = process.env.API_KEY;
+  if (!apiKey) {
     console.error("API_KEY environment variable not set. Gemini API calls will fail.");
+    return false;
+  }
+  if (apiKey.length < 10) {
+    console.error("API_KEY appears to be invalid (too short). Gemini API calls will fail.");
     return false;
   }
   return true;
@@ -81,6 +84,15 @@ const parseJsonSafely = <T>(jsonStr: string, defaultDisclaimerOrValue?: string |
   }
 };
 
+// Add a timeout promise wrapper
+const withTimeout = <T>(promise: Promise<T>, timeoutMs: number): Promise<T> => {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => {
+      setTimeout(() => reject(new Error('Request timed out')), timeoutMs);
+    })
+  ]);
+};
 
 export const generateValidationReport = async (claim: string): Promise<ReportData> => {
   if (!checkApiKey()) {
@@ -131,14 +143,21 @@ Analyze the claim "${claim}" and generate the report.
   let genContentResponse: GenerateContentResponse | undefined;
 
   try {
-    genContentResponse = await ai.models.generateContent({
-      model: GEMINI_MODEL_NAME,
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        temperature: 0.35, 
-      },
-    });
+    genContentResponse = await withTimeout(
+      ai.models.generateContent({
+        model: GEMINI_MODEL_NAME,
+        contents: prompt,
+        config: {
+          responseMimeType: "application/json",
+          temperature: 0.35,
+        },
+      }),
+      30000 // 30 second timeout
+    );
+    
+    if (!genContentResponse?.text) {
+      throw new Error('No response text received from Gemini API');
+    }
     
     const parsedData = parseJsonSafely<GeminiReportResponse>(genContentResponse.text) as GeminiReportResponse;
 
@@ -227,11 +246,18 @@ Analyze symptoms: "${symptoms}"
 `;
   let genContentResponse: GenerateContentResponse | undefined;
   try {
-    genContentResponse = await ai.models.generateContent({
-      model: GEMINI_MODEL_NAME,
-      contents: prompt,
-      config: { responseMimeType: "application/json", temperature: 0.4 },
-    });
+    genContentResponse = await withTimeout(
+      ai.models.generateContent({
+        model: GEMINI_MODEL_NAME,
+        contents: prompt,
+        config: { responseMimeType: "application/json", temperature: 0.4 },
+      }),
+      30000 // 30 second timeout
+    );
+    
+    if (!genContentResponse?.text) {
+      throw new Error('No response text received from Gemini API');
+    }
     
     const parsedData = parseJsonSafely<SymptomAnalysisResponse>(genContentResponse.text, defaultDisclaimer) as SymptomAnalysisResponse;
 
@@ -290,11 +316,18 @@ Generate news for query: "${query}"
 `;
   let genContentResponse: GenerateContentResponse | undefined;
   try {
-    genContentResponse = await ai.models.generateContent({
-      model: GEMINI_MODEL_NAME,
-      contents: prompt,
-      config: { responseMimeType: "application/json", temperature: 0.7 }, 
-    });
+    genContentResponse = await withTimeout(
+      ai.models.generateContent({
+        model: GEMINI_MODEL_NAME,
+        contents: prompt,
+        config: { responseMimeType: "application/json", temperature: 0.7 }, 
+      }),
+      30000 // 30 second timeout
+    );
+
+    if (!genContentResponse?.text) {
+      throw new Error('No response text received from Gemini API');
+    }
 
     const parsedData = parseJsonSafely<GeminiHealthcareNewsResponseItem[]>(genContentResponse.text, []) as GeminiHealthcareNewsResponseItem[];
 
@@ -358,11 +391,18 @@ Analyze ingredient: "${ingredientName}"
 `;
   let genContentResponse: GenerateContentResponse | undefined;
   try {
-    genContentResponse = await ai.models.generateContent({
-      model: GEMINI_MODEL_NAME,
-      contents: prompt,
-      config: { responseMimeType: "application/json", temperature: 0.3 },
-    });
+    genContentResponse = await withTimeout(
+      ai.models.generateContent({
+        model: GEMINI_MODEL_NAME,
+        contents: prompt,
+        config: { responseMimeType: "application/json", temperature: 0.3 },
+      }),
+      30000 // 30 second timeout
+    );
+    
+    if (!genContentResponse?.text) {
+      throw new Error('No response text received from Gemini API');
+    }
     
     const parsedData = parseJsonSafely<GeminiIngredientAnalysisResponseItem>(genContentResponse.text, defaultDisclaimer) as GeminiIngredientAnalysisResponseItem;
 
@@ -422,11 +462,18 @@ Analyze: "${productConceptOrClaim}" for audience "${targetAudience || 'General P
 `;
   let genContentResponse: GenerateContentResponse | undefined;
   try {
-    genContentResponse = await ai.models.generateContent({
-      model: GEMINI_MODEL_NAME,
-      contents: prompt,
-      config: { responseMimeType: "application/json", temperature: 0.5 },
-    });
+    genContentResponse = await withTimeout(
+      ai.models.generateContent({
+        model: GEMINI_MODEL_NAME,
+        contents: prompt,
+        config: { responseMimeType: "application/json", temperature: 0.5 },
+      }),
+      30000 // 30 second timeout
+    );
+    
+    if (!genContentResponse?.text) {
+      throw new Error('No response text received from Gemini API');
+    }
     
     const parsedData = parseJsonSafely<GeminiConsumerInsightsResponseItem>(genContentResponse.text, defaultDisclaimer) as GeminiConsumerInsightsResponseItem;
 
@@ -488,11 +535,18 @@ Analyze copy: "${marketingCopy}"
 `;
   let genContentResponse: GenerateContentResponse | undefined;
   try {
-    genContentResponse = await ai.models.generateContent({
-      model: GEMINI_MODEL_NAME,
-      contents: prompt,
-      config: { responseMimeType: "application/json", temperature: 0.4 },
-    });
+    genContentResponse = await withTimeout(
+      ai.models.generateContent({
+        model: GEMINI_MODEL_NAME,
+        contents: prompt,
+        config: { responseMimeType: "application/json", temperature: 0.4 },
+      }),
+      30000 // 30 second timeout
+    );
+    
+    if (!genContentResponse?.text) {
+      throw new Error('No response text received from Gemini API');
+    }
     
     const parsedData = parseJsonSafely<GeminiComplianceAnalysisResponseItem>(genContentResponse.text, defaultDisclaimer) as GeminiComplianceAnalysisResponseItem;
 
@@ -555,11 +609,18 @@ Formulate ideas for: "${query}", including "${includeIngredients}", excluding "$
 `;
   let genContentResponse: GenerateContentResponse | undefined;
   try {
-    genContentResponse = await ai.models.generateContent({
-      model: GEMINI_MODEL_NAME,
-      contents: prompt,
-      config: { responseMimeType: "application/json", temperature: 0.65 }, 
-    });
+    genContentResponse = await withTimeout(
+      ai.models.generateContent({
+        model: GEMINI_MODEL_NAME,
+        contents: prompt,
+        config: { responseMimeType: "application/json", temperature: 0.65 }, 
+      }),
+      30000 // 30 second timeout
+    );
+    
+    if (!genContentResponse?.text) {
+      throw new Error('No response text received from Gemini API');
+    }
     
     const parsedData = parseJsonSafely<GeminiFormulationAdvisorResponseItem>(genContentResponse.text, defaultDisclaimer) as GeminiFormulationAdvisorResponseItem;
     
@@ -628,11 +689,18 @@ Detailed Instructions:
 
   let genContentResponse: GenerateContentResponse | undefined;
   try {
-    genContentResponse = await ai.models.generateContent({
-      model: GEMINI_MODEL_NAME,
-      contents: prompt,
-      config: { responseMimeType: "application/json", temperature: 0.75 },
-    });
+    genContentResponse = await withTimeout(
+      ai.models.generateContent({
+        model: GEMINI_MODEL_NAME,
+        contents: prompt,
+        config: { responseMimeType: "application/json", temperature: 0.75 },
+      }),
+      30000 // 30 second timeout
+    );
+
+    if (!genContentResponse?.text) {
+      throw new Error('No response text received from Gemini API');
+    }
 
     const parsedData = parseJsonSafely<GeminiForumThreadSeed[]>(genContentResponse.text, []) as GeminiForumThreadSeed[];
 
@@ -773,11 +841,18 @@ Generate a personalized quiz tailored for a user with Field of Study: "${preQuiz
 
   let genContentResponse: GenerateContentResponse | undefined;
   try {
-    genContentResponse = await ai.models.generateContent({
-      model: GEMINI_MODEL_NAME,
-      contents: prompt,
-      config: { responseMimeType: "application/json", temperature: 0.6 }, // Slightly increased temperature for more varied questions 
-    });
+    genContentResponse = await withTimeout(
+      ai.models.generateContent({
+        model: GEMINI_MODEL_NAME,
+        contents: prompt,
+        config: { responseMimeType: "application/json", temperature: 0.6 }, // Slightly increased temperature for more varied questions 
+      }),
+      30000 // 30 second timeout
+    );
+
+    if (!genContentResponse?.text) {
+      throw new Error('No response text received from Gemini API');
+    }
 
     const parsedData = parseJsonSafely<GeminiQuizResponse>(genContentResponse.text, { quizTitle: "Personalized Quiz", questions: [] }) as GeminiQuizResponse;
     
@@ -836,11 +911,18 @@ Generate one challenge.
 `;
   let genContentResponse: GenerateContentResponse | undefined;
   try {
-    genContentResponse = await ai.models.generateContent({
-      model: GEMINI_MODEL_NAME,
-      contents: prompt,
-      config: { responseMimeType: "application/json", temperature: 0.6 },
-    });
+    genContentResponse = await withTimeout(
+      ai.models.generateContent({
+        model: GEMINI_MODEL_NAME,
+        contents: prompt,
+        config: { responseMimeType: "application/json", temperature: 0.6 },
+      }),
+      30000 // 30 second timeout
+    );
+    
+    if (!genContentResponse?.text) {
+      throw new Error('No response text received from Gemini API');
+    }
     
     const parsedData = parseJsonSafely<GeminiSpotTheClaimResponse>(genContentResponse.text, defaultResponse) as GeminiSpotTheClaimResponse;
     
@@ -887,11 +969,18 @@ Generate ${count} entries.
 `;
   let genContentResponse: GenerateContentResponse | undefined;
   try {
-    genContentResponse = await ai.models.generateContent({
-      model: GEMINI_MODEL_NAME,
-      contents: prompt,
-      config: { responseMimeType: "application/json", temperature: 0.7 },
-    });
+    genContentResponse = await withTimeout(
+      ai.models.generateContent({
+        model: GEMINI_MODEL_NAME,
+        contents: prompt,
+        config: { responseMimeType: "application/json", temperature: 0.7 },
+      }),
+      30000 // 30 second timeout
+    );
+
+    if (!genContentResponse?.text) {
+      throw new Error('No response text received from Gemini API');
+    }
 
     const parsedData = parseJsonSafely<GeminiLeaderboardEntrySeed[]>(genContentResponse.text, []) as GeminiLeaderboardEntrySeed[];
 

@@ -1,6 +1,4 @@
-
-
-import React, { useState, useCallback, useEffect, useContext } from 'react'; // Added useContext
+import React, { useState, useCallback, useEffect, useContext, useRef } from 'react';
 import ClaimInputForm from '../ClaimInputForm';
 import ReportDisplay from '../ReportDisplay';
 import LoadingSpinner from '../LoadingSpinner';
@@ -8,22 +6,22 @@ import InfoIcon from '../icons/InfoIcon';
 import ReportCustomizer from './ReportCustomizer';
 import type { ReportData, CustomizationSettings } from '../../types';
 import { generateValidationReport } from '../../services/geminiService';
-import { UserProgressContext } from '../../contexts/UserProgressContext'; // New
+import { UserProgressContext } from '../../contexts/UserProgressContext';
 
 interface ValidatorPageProps {
   onExportPDF: () => void;
   onGenerateBadge: () => void;
-  onExportDocx: () => void; 
-  onExportJson: () => void; 
+  onExportDocx: () => void;
+  onExportJson: () => void;
   onReportGenerated: (report: ReportData) => void;
-  initialReport?: ReportData | null; 
-  initialClaim?: string; 
+  initialReport?: ReportData | null;
+  initialClaim?: string;
   customizationSettings: CustomizationSettings;
   onCustomizationChange: (settings: CustomizationSettings) => void;
 }
 
-const ValidatorPage: React.FC<ValidatorPageProps> = ({ 
-  onExportPDF, 
+const ValidatorPage: React.FC<ValidatorPageProps> = ({
+  onExportPDF,
   onGenerateBadge,
   onExportDocx,
   onExportJson,
@@ -33,50 +31,101 @@ const ValidatorPage: React.FC<ValidatorPageProps> = ({
   customizationSettings,
   onCustomizationChange
 }) => {
-  const [currentClaim, setCurrentClaim] = useState<string>(initialClaim);
-  const [report, setReport] = useState<ReportData | null>(initialReport);
+  const hasInitializedFromPropsRef = useRef(false);
+
+  const [currentClaim, setCurrentClaim] = useState<string>(() => {
+    console.log('ValidatorPage: useState for currentClaim, initialValue from prop:', initialClaim ?? '');
+    return initialClaim ?? '';
+  });
+
+  const [report, setReport] = useState<ReportData | null>(() => {
+    console.log('ValidatorPage: useState for report, initialValue from prop:', initialReport);
+    return initialReport;
+  });
+
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const userProgress = useContext(UserProgressContext); // New
+  const userProgress = useContext(UserProgressContext);
+  const submissionInProgressRef = useRef(false);
 
+  // Effect to initialize state from props ONLY ONCE on initial mount
+  // or if the component is remounted and props are different.
   useEffect(() => {
-    setReport(initialReport);
-  }, [initialReport]);
+    // This log helps see if this effect is running due to a remount
+    console.log(`ValidatorPage: Mount/Prop Effect. Initial Report: ${initialReport ? 'Exists' : 'null'}, Initial Claim: "${initialClaim}"`);
 
-  useEffect(() => {
-    setCurrentClaim(initialClaim);
-  }, [initialClaim]);
-
+    // Only set from props if they haven't been set by this effect before in this instance,
+    // OR if the incoming props are genuinely different from the current state
+    // (e.g. navigating to view a different report).
+    if (!hasInitializedFromPropsRef.current || initialReport !== report || initialClaim !== currentClaim) {
+        console.log('ValidatorPage: Applying initial props to state.');
+        if (initialReport !== report) setReport(initialReport);
+        if (initialClaim !== currentClaim) setCurrentClaim(initialClaim ?? ''); // Ensure currentClaim is also updated
+        hasInitializedFromPropsRef.current = true;
+    }
+  }, [initialReport, initialClaim]); // Re-run if these specific props change after mount.
 
   const handleClaimSubmit = useCallback(async (submittedClaim: string) => {
-    setCurrentClaim(submittedClaim);
+    console.log('ENTERED handleClaimSubmit. submissionInProgressRef.current:', submissionInProgressRef.current, 'Claim:', submittedClaim);
+
+    if (submissionInProgressRef.current) {
+      console.warn("handleClaimSubmit: Submission already in progress. IGNORING CALL.");
+      return;
+    }
+
+    console.log('handleClaimSubmit: SETTING submissionInProgressRef to true');
+    submissionInProgressRef.current = true;
+
+    console.log('handleClaimSubmit: Calling setCurrentClaim (for this submission):', submittedClaim);
+    setCurrentClaim(submittedClaim); // Update current claim based on this submission
+    console.log('handleClaimSubmit: Calling setIsLoading: true');
     setIsLoading(true);
+    console.log('handleClaimSubmit: Calling setError: null');
     setError(null);
-    setReport(null);
+    console.log('handleClaimSubmit: Calling setReport: null');
+    setReport(null); // Clear previous report for this new submission
 
     try {
+      console.log('handleClaimSubmit: TRY block - Calling generateValidationReport...');
       const generatedReport = await generateValidationReport(submittedClaim);
+      console.log('handleClaimSubmit: TRY block - Generated report:', generatedReport ? 'Exists' : 'null', generatedReport);
+
+      console.log('handleClaimSubmit: TRY block - Calling setReport with generatedReport');
       setReport(generatedReport);
-      onReportGenerated(generatedReport); 
-      // FIX: Change 'validationPerformed' to 'validationsPerformed'
-      userProgress?.logAction('validationsPerformed'); 
+      console.log('handleClaimSubmit: TRY block - Calling onReportGenerated');
+      onReportGenerated(generatedReport);
+      console.log('handleClaimSubmit: TRY block - Calling userProgress.logAction');
+      userProgress?.logAction('validationsPerformed');
+      console.log('handleClaimSubmit: TRY block - userProgress.logAction DONE');
+
     } catch (err) {
+      console.error('handleClaimSubmit: CATCH block - Error:', err);
       if (err instanceof Error) {
+        console.log('handleClaimSubmit: CATCH block - Calling setError with err.message');
         setError(err.message || 'An unknown error occurred while generating the report.');
       } else {
+        console.log('handleClaimSubmit: CATCH block - Calling setError with generic message');
         setError('An unknown error occurred.');
       }
+      console.log('handleClaimSubmit: CATCH block - Calling setReport: null');
+      setReport(null);
     } finally {
+      console.log('handleClaimSubmit: FINALLY block - Calling setIsLoading: false');
       setIsLoading(false);
+      console.log('handleClaimSubmit: FINALLY block - SETTING submissionInProgressRef to false');
+      submissionInProgressRef.current = false;
     }
-  }, [onReportGenerated, userProgress]);
+    console.log('EXITING handleClaimSubmit');
+  }, [onReportGenerated, userProgress]); // Dependencies for useCallback
+
+  console.log(`ValidatorPage RENDER: isLoading: ${isLoading}, report: ${report ? 'Exists' : 'null'}, error: ${error ? 'Exists' : 'null'}, currentClaim: "${currentClaim}"`);
 
   return (
     <div className="space-y-8">
-      <ClaimInputForm 
-        onSubmit={handleClaimSubmit} 
+      <ClaimInputForm
+        onSubmit={handleClaimSubmit}
         isLoading={isLoading}
-        initialClaim={currentClaim} 
+        initialClaim={currentClaim} // Use the internal currentClaim for the form
       />
 
       <ReportCustomizer
@@ -91,7 +140,7 @@ const ValidatorPage: React.FC<ValidatorPageProps> = ({
         </div>
       )}
 
-      {error && (
+      {error && !isLoading && (
         <div className="mt-8 p-4 bg-red-700 bg-opacity-80 border border-red-600 text-red-100 rounded-lg shadow-card flex items-start">
           <InfoIcon className="h-6 w-6 mr-3 text-red-300 flex-shrink-0 mt-0.5" />
           <div>
@@ -101,7 +150,7 @@ const ValidatorPage: React.FC<ValidatorPageProps> = ({
         </div>
       )}
 
-      {!isLoading && report && (
+      {!isLoading && report && !error && (
         <ReportDisplay
           report={report}
           customizationSettings={customizationSettings}
