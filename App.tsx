@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
-import { supabase } from './supabase'; // Path to your supabase.ts
-import { Session, AuthChangeEvent, User as SupabaseUser } from '@supabase/supabase-js'; // Import Supabase User type
+import { supabase } from './supabase';
+import { Session, AuthChangeEvent, User as SupabaseUser } from '@supabase/supabase-js';
 
 // Import Components (ensure paths are correct)
 import Header from './components/Header';
@@ -168,7 +168,8 @@ const App: React.FC = () => {
           console.log('App: Fetched user plan/usage RPC result:', { data, error });
           if (error) {
             console.error('App: Error fetching user usage:', error);
-            setUserUsage(null); return;
+            setUserUsage(null); 
+            return;
           }
           if (data && data.length > 0) {
             const usage = data[0];
@@ -180,8 +181,8 @@ const App: React.FC = () => {
             setUserUsage(null);
           }
         } catch(rpcError) {
-            console.error('App: Exception during fetchUserUsage RPC call:', rpcError);
-            if (mounted) setUserUsage(null);
+          console.error('App: Exception during fetchUserUsage RPC call:', rpcError);
+          if (mounted) setUserUsage(null);
         }
       } else if (!appUser) {
         console.log('App: No appUser, clearing userUsage and not fetching.');
@@ -463,7 +464,7 @@ const App: React.FC = () => {
           {/* Modals are direct children of the main app wrapper div */}
           <Modal isOpen={isInfoModalOpen} onClose={closeInfoModal} title={infoModalContent.title}>
             <p>{infoModalContent.message}</p>
-          </Modal> {/* Corrected closing tag */}
+          </Modal>
 
           <Modal 
             isOpen={isSignInPromptOpen} 
@@ -491,7 +492,7 @@ const App: React.FC = () => {
             myReportItems={myReports}
             onSelectMyReportItem={handleSelectMyReportItem}
           />
-        </div> {/* Closing tag for main app wrapper div */}
+        </div>
       </UserProgressProvider>
     </AppUserProvider>
   );
