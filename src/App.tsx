@@ -430,7 +430,7 @@ const App: React.FC = () => {
                   <FormulationAdvisorPage />
                 </ProtectedRoute>
               } />
-              <Route path="*" element={<Navigate to="/" replace />} />
+              <Route path="*" element={<Navigate to="/\" replace />} />
             </Routes>
           </main>
           <Footer navigateTo={navigateTo} />
