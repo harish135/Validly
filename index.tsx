@@ -1,8 +1,7 @@
 // Convert OAuth hash fragment to query params for /auth/callback before anything else
-if (window.location.hash.startsWith('#access_token') && window.location.pathname === '/auth/callback') {
+if (window.location.hash && window.location.pathname === '/auth/callback') {
   const queryParams = new URLSearchParams(window.location.hash.slice(1));
-  const newUrl = `${window.location.origin}/auth/callback?${queryParams.toString()}`;
-  window.location.replace(newUrl); // force redirect before app renders
+  window.location.replace(`${window.location.origin}/auth/callback?${queryParams.toString()}`);
 }
 
 import React from 'react';
