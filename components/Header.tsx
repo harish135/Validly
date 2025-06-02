@@ -19,14 +19,7 @@ import TargetIcon from './icons/TargetIcon';
 import ClockIcon from './icons/ClockIcon';
 import MenuIcon from './icons/MenuIcon';
 import type { IconProps } from '../../types';
-import type { Page } from '../App';
-
-interface NavLinkDef {
-  page: Page;
-  label: string;
-  iconComponent?: React.FC<IconProps>;
-  sectionTitle?: string;
-}
+import type { Page, AppUser } from '../App';
 
 interface HeaderProps {
   user: AppUser | null;

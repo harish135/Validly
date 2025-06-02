@@ -56,6 +56,7 @@ interface UserUsage {
   minutesUsed: number;
   dailyLimit: number | null;
   isUnlimited: boolean;
+  lastUpdated: number;
 }
 
 const App: React.FC = () => {
@@ -79,7 +80,8 @@ const App: React.FC = () => {
     planName: 'Free',
     minutesUsed: 0,
     dailyLimit: 20,
-    isUnlimited: false
+    isUnlimited: false,
+    lastUpdated: Date.now()
   });
 
   const navigate = useNavigate();
@@ -91,6 +93,68 @@ const App: React.FC = () => {
     }
     return import.meta.env.VITE_APP_BASE_URL || `http://localhost:${window.location.port || '3000'}`;
   }, []);
+
+  const fetchUserUsage = useCallback(async () => {
+    if (!appUser) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('user_subscriptions')
+        .select(`
+          subscription_plans (
+            name,
+            daily_time_allowance_minutes
+          ),
+          feature_usage_tracking (
+            usage_count,
+            used_at
+          )
+        `)
+        .eq('user_id', appUser.id)
+        .eq('status', 'active')
+        .single();
+
+      if (error) {
+        console.error('App: Error fetching user usage:', error);
+        return;
+      }
+
+      if (data) {
+        const plan = data.subscription_plans;
+        const usage = data.feature_usage_tracking || [];
+        
+        // Only count usage from today
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        const minutesUsed = usage
+          .filter((record: any) => new Date(record.used_at) >= today)
+          .reduce((total: number, record: any) => total + (record.usage_count || 0), 0);
+
+        setUserUsage({
+          planName: plan?.name || 'Free',
+          minutesUsed: minutesUsed,
+          dailyLimit: plan?.daily_time_allowance_minutes ?? 20,
+          isUnlimited: plan?.daily_time_allowance_minutes === null,
+          lastUpdated: Date.now()
+        });
+      }
+    } catch(error) {
+      console.error('App: Exception during fetchUserUsage:', error);
+    }
+  }, [appUser]);
+
+  useEffect(() => {
+    if (!appUser) return;
+
+    fetchUserUsage(); // Initial fetch
+    
+    const interval = setInterval(() => {
+      fetchUserUsage();
+    }, 60000); // Update every minute
+
+    return () => clearInterval(interval);
+  }, [appUser, fetchUserUsage]);
 
   useEffect(() => {
     let mounted = true;
@@ -145,68 +209,6 @@ const App: React.FC = () => {
       authListener?.subscription.unsubscribe();
     };
   }, [navigate]);
-
-  useEffect(() => {
-    let mounted = true;
-    const fetchUserUsage = async () => {
-      if (appUser && mounted) {
-        try {
-          const { data, error } = await supabase
-            .from('user_subscriptions')
-            .select(`
-              subscription_plans (
-                name,
-                daily_time_allowance_minutes
-              ),
-              feature_usage_tracking (
-                usage_count
-              )
-            `)
-            .eq('user_id', appUser.id)
-            .eq('status', 'active')
-            .single();
-
-          if (!mounted) return;
-          
-          if (error) {
-            console.error('App: Error fetching user usage:', error);
-            setUserUsage({
-              planName: 'Free',
-              minutesUsed: 0,
-              dailyLimit: 20,
-              isUnlimited: false
-            });
-            return;
-          }
-
-          if (data) {
-            const plan = data.subscription_plans;
-            const usage = data.feature_usage_tracking || [];
-            const minutesUsed = usage.reduce((total: number, record: any) => total + (record.usage_count || 0), 0);
-
-            setUserUsage({
-              planName: plan?.name || 'Free',
-              minutesUsed: minutesUsed,
-              dailyLimit: plan?.daily_time_allowance_minutes ?? 20,
-              isUnlimited: plan?.daily_time_allowance_minutes === null
-            });
-          }
-        } catch(error) {
-          console.error('App: Exception during fetchUserUsage:', error);
-          if (mounted) {
-            setUserUsage({
-              planName: 'Free',
-              minutesUsed: 0,
-              dailyLimit: 20,
-              isUnlimited: false
-            });
-          }
-        }
-      }
-    };
-    fetchUserUsage();
-    return () => { mounted = false; }
-  }, [appUser]);
 
   const handleGoogleSignIn = async () => {
     const currentPathForRedirect = location.pathname === '/' ? '/validator' : location.pathname;
