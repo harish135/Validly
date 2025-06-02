@@ -14,8 +14,8 @@ import Sidebar from '../components/Sidebar';
 import ProtectedRoute from '../components/ProtectedRoute';
 import { MOCK_PDF_MESSAGE, MOCK_BADGE_MESSAGE, DEFAULT_CUSTOM_COLOR, MOCK_DOCX_MESSAGE, MOCK_JSON_EXPORT_MESSAGE } from '../constants';
 import type { ReportData, MyReportItem, CustomizationSettings } from './types';
-import { UserProgressProvider } from './contexts/UserProgressContext';
-import { AppUserProvider } from './contexts/AppUserContext';
+import { UserProgressProvider } from '../contexts/UserProgressContext';
+import { AppUserProvider } from '../contexts/AppUserContext';
 
 // Import Feature Pages
 import CompetitorMonitoringPage from '../components/ProFeaturePages/CompetitorMonitoringPage';
