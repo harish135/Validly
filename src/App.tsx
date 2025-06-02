@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
-import { supabase } from './supabase';
+import { supabase } from '../supabase';
 import { Session, AuthChangeEvent, User as SupabaseUser } from '@supabase/supabase-js';
 
 // Import Components
