@@ -82,6 +82,54 @@ const App: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
+  const handleGoogleSignIn = async () => {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`
+        }
+      });
+      if (error) throw error;
+    } catch (error) {
+      console.error('Error signing in with Google:', error);
+      setInfoModalContent({
+        title: 'Sign In Error',
+        message: 'There was an error signing in with Google. Please try again.'
+      });
+      setIsInfoModalOpen(true);
+    }
+  };
+
+  const handleGoogleSignOut = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      setAppUser(null);
+      setSession(null);
+      navigate('/');
+    } catch (error) {
+      console.error('Error signing out:', error);
+      setInfoModalContent({
+        title: 'Sign Out Error',
+        message: 'There was an error signing out. Please try again.'
+      });
+      setIsInfoModalOpen(true);
+    }
+  };
+
+  const toggleSidebar = () => {
+    setIsSidebarOpen(!isSidebarOpen);
+  };
+
+  const handleToggleMyReportsModal = () => {
+    setIsMyReportsModalOpen(!isMyReportsModalOpen);
+  };
+
+  const navigateTo = (path: string) => {
+    navigate(path);
+  };
+
   useEffect(() => {
     let mounted = true;
     const fetchUserUsage = async () => {
