@@ -15,7 +15,8 @@ interface HeaderProps {
   myReportsCount: number;
   onToggleMyReports: () => void;
   navigateTo: (page: Page) => void;
-  triesLeft: number | 'Unlimited' | null;
+  timeLeft: string | null;
+  planName: string;
 }
 
 export const ValidlyLogo: React.FC<{ className?: string }> = ({ className = "h-20 w-auto" }) => (
@@ -35,7 +36,8 @@ const Header: React.FC<HeaderProps> = ({
   myReportsCount, 
   onToggleMyReports, 
   navigateTo,
-  triesLeft
+  timeLeft,
+  planName
 }) => {
   return (
     <header className="bg-brand-gray-900 shadow-premium sticky top-0 z-40 border-b border-brand-gray-700">
@@ -81,14 +83,11 @@ const Header: React.FC<HeaderProps> = ({
                     className="h-8 w-8 rounded-full"
                   />
                 )}
-                {triesLeft !== null && (
+                {timeLeft !== null && (
                   <div className="flex items-center text-sm text-brand-premium-blue bg-brand-gray-800 px-3 py-1.5 rounded-full border border-brand-gray-700">
                     <ClockIcon className="w-4 h-4 mr-2" />
-                    {typeof triesLeft === 'number' ? (
-                      <span>{triesLeft} minutes left today</span>
-                    ) : triesLeft === 'Unlimited' ? (
-                      <span>Unlimited Access</span>
-                    ) : null}
+                    <span className="font-medium text-brand-gray-200 mr-1">{planName}:</span>
+                    <span>{timeLeft}</span>
                   </div>
                 )}
                 <button

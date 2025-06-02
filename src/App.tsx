@@ -51,6 +51,13 @@ export interface AppUser {
   imageUrl: string;
 }
 
+interface UserUsage {
+  planName: string;
+  minutesUsed: number;
+  dailyLimit: number | null;
+  isUnlimited: boolean;
+}
+
 const App: React.FC = () => {
   const [session, setSession] = useState<Session | null>(null);
   const [appUser, setAppUser] = useState<AppUser | null>(null);
@@ -68,7 +75,12 @@ const App: React.FC = () => {
     primaryColor: DEFAULT_CUSTOM_COLOR,
   });
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
-  const [userUsage, setUserUsage] = useState<{ triesLeft: number | 'Unlimited' | null }>({ triesLeft: null });
+  const [userUsage, setUserUsage] = useState<UserUsage>({
+    planName: 'Free',
+    minutesUsed: 0,
+    dailyLimit: 20,
+    isUnlimited: false
+  });
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -143,22 +155,34 @@ const App: React.FC = () => {
           if (!mounted) return;
           if (error) {
             console.error('App: Error fetching user usage:', error);
-            setUserUsage({ triesLeft: null });
+            setUserUsage({
+              planName: 'Free',
+              minutesUsed: 0,
+              dailyLimit: 20,
+              isUnlimited: false
+            });
             return;
           }
           if (data && data.length > 0) {
             const usage = data[0];
-            const newTriesLeft = usage.is_unlimited ? 'Unlimited' : usage.requests_remaining;
-            setUserUsage({ triesLeft: newTriesLeft });
-          } else {
-            setUserUsage({ triesLeft: null });
+            setUserUsage({
+              planName: usage.plan_name,
+              minutesUsed: usage.minutes_used,
+              dailyLimit: usage.daily_limit,
+              isUnlimited: usage.is_unlimited
+            });
           }
         } catch(error) {
           console.error('App: Exception during fetchUserUsage:', error);
-          if (mounted) setUserUsage({ triesLeft: null });
+          if (mounted) {
+            setUserUsage({
+              planName: 'Free',
+              minutesUsed: 0,
+              dailyLimit: 20,
+              isUnlimited: false
+            });
+          }
         }
-      } else if (!appUser) {
-        setUserUsage({ triesLeft: null });
       }
     };
     fetchUserUsage();
@@ -281,6 +305,17 @@ const App: React.FC = () => {
     );
   }
 
+  const getTimeDisplay = () => {
+    if (userUsage.isUnlimited) {
+      return 'Unlimited';
+    }
+    if (userUsage.dailyLimit) {
+      const remaining = Math.max(0, userUsage.dailyLimit - userUsage.minutesUsed);
+      return `${remaining} minutes left today`;
+    }
+    return null;
+  };
+
   return (
     <AppUserProvider user={appUser}>
       <UserProgressProvider>
@@ -294,7 +329,8 @@ const App: React.FC = () => {
             myReportsCount={myReports.length}
             onToggleMyReports={handleToggleMyReportsModal}
             navigateTo={navigateTo}
-            triesLeft={userUsage.triesLeft}
+            timeLeft={getTimeDisplay()}
+            planName={userUsage.planName}
           />
           <Sidebar
             isOpen={isSidebarOpen}
