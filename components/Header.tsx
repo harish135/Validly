@@ -58,18 +58,19 @@ const Header: React.FC<HeaderProps> = ({
             </a>
           </div>
           
-          <div className="flex items-center space-x-2 sm:space-x-3">
-             {myReportsCount > 0 && (
-                <button
-                    onClick={onToggleMyReports}
-                    className="p-2 rounded-full text-brand-gray-300 hover:text-brand-premium-blue hover:bg-brand-gray-700 transition-colors duration-150"
-                    title="View My Reports"
-                    aria-label="View My Reports"
-                >
-                    <HistoryIcon className="w-6 h-6" />
-                </button>
+          <div className="flex items-center space-x-4">
+            {myReportsCount > 0 && (
+              <button
+                onClick={onToggleMyReports}
+                className="p-2 rounded-full text-brand-gray-300 hover:text-brand-premium-blue hover:bg-brand-gray-700 transition-colors duration-150"
+                title="View My Reports"
+                aria-label="View My Reports"
+              >
+                <HistoryIcon className="w-6 h-6" />
+              </button>
             )}
           </div>
+
           <div className="flex items-center space-x-4">
             {user ? (
               <div className="flex items-center space-x-4">
@@ -80,16 +81,14 @@ const Header: React.FC<HeaderProps> = ({
                     className="h-8 w-8 rounded-full"
                   />
                 )}
-                {triesLeft !== null && triesLeft !== undefined && (
-                  <div className="flex items-center text-xs text-brand-premium-blue bg-brand-gray-800 px-3 py-1.5 rounded-full border border-brand-gray-700">
+                {triesLeft !== null && (
+                  <div className="flex items-center text-sm text-brand-premium-blue bg-brand-gray-800 px-3 py-1.5 rounded-full border border-brand-gray-700">
                     <ClockIcon className="w-4 h-4 mr-2" />
                     {typeof triesLeft === 'number' ? (
                       <span>{triesLeft} minutes left today</span>
                     ) : triesLeft === 'Unlimited' ? (
                       <span>Unlimited Access</span>
-                    ) : (
-                      <span>{triesLeft}</span>
-                    )}
+                    ) : null}
                   </div>
                 )}
                 <button
