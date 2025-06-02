@@ -83,6 +83,7 @@ const App: React.FC = () => {
     isUnlimited: false,
     lastUpdated: Date.now()
   });
+  const [showUpgradeModal, setShowUpgradeModal] = useState<boolean>(false);
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -131,13 +132,41 @@ const App: React.FC = () => {
           .filter((record: any) => new Date(record.used_at) >= today)
           .reduce((total: number, record: any) => total + (record.usage_count || 0), 0);
 
-        setUserUsage({
+        const newUsage = {
           planName: plan?.name || 'Free',
           minutesUsed: minutesUsed,
           dailyLimit: plan?.daily_time_allowance_minutes ?? 20,
           isUnlimited: plan?.daily_time_allowance_minutes === null,
           lastUpdated: Date.now()
-        });
+        };
+
+        setUserUsage(newUsage);
+
+        // Check if we should show upgrade modal
+        if (!newUsage.isUnlimited && newUsage.dailyLimit) {
+          const remaining = newUsage.dailyLimit - newUsage.minutesUsed;
+          if (remaining <= 0) {
+            const message = newUsage.planName === 'Free' 
+              ? "You've used all your free minutes for today! Upgrade to Growth plan for 60 minutes daily, or Pro for unlimited usage."
+              : "You've reached your daily limit! Upgrade to Pro for unlimited usage.";
+            
+            setInfoModalContent({
+              title: 'Time Limit Reached',
+              message
+            });
+            setShowUpgradeModal(true);
+          } else if (remaining <= 5) { // Warning when 5 minutes or less remaining
+            const message = newUsage.planName === 'Free'
+              ? `Only ${remaining} minutes left in your free plan today! Consider upgrading to Growth or Pro plan.`
+              : `Only ${remaining} minutes left today! Consider upgrading to Pro for unlimited usage.`;
+            
+            setInfoModalContent({
+              title: 'Time Running Low',
+              message
+            });
+            setShowUpgradeModal(true);
+          }
+        }
       }
     } catch(error) {
       console.error('App: Exception during fetchUserUsage:', error);
@@ -328,6 +357,11 @@ const App: React.FC = () => {
     }
     return null;
   };
+
+  const handleUpgradeClick = useCallback(() => {
+    setShowUpgradeModal(false);
+    navigateTo('pricing');
+  }, [navigateTo]);
 
   if (isInitializingAuth) {
     return (
@@ -520,6 +554,30 @@ const App: React.FC = () => {
             </div>
           </Modal>
 
+          <Modal
+            isOpen={showUpgradeModal}
+            onClose={() => setShowUpgradeModal(false)}
+            title={infoModalContent.title}
+          >
+            <div className="text-center">
+              <p className="mb-4 text-brand-gray-300">{infoModalContent.message}</p>
+              <div className="flex justify-center space-x-4">
+                <button
+                  onClick={handleUpgradeClick}
+                  className="px-6 py-2 text-white bg-brand-premium-blue rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                >
+                  View Plans
+                </button>
+                <button
+                  onClick={() => setShowUpgradeModal(false)}
+                  className="px-6 py-2 text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
+                >
+                  Maybe Later
+                </button>
+              </div>
+            </div>
+          </Modal>
+
           <MyReportsModal
             isOpen={isMyReportsModalOpen}
             onClose={handleToggleMyReportsModal}
@@ -533,3 +591,5 @@ const App: React.FC = () => {
 };
 
 export default App;
+
+export default App
