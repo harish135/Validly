@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { supabase } from './supabase';
 
 const App: React.FC = () => {
