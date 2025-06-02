@@ -80,14 +80,15 @@ const Header: React.FC<HeaderProps> = ({
                     className="h-8 w-8 rounded-full"
                   />
                 )}
-                {/* Show time remaining if available */}
                 {triesLeft !== null && triesLeft !== undefined && (
                   <div className="flex items-center text-xs text-brand-premium-blue bg-brand-gray-800 px-3 py-1.5 rounded-full border border-brand-gray-700">
                     <ClockIcon className="w-4 h-4 mr-2" />
-                    {triesLeft === 'Unlimited' ? (
+                    {typeof triesLeft === 'number' ? (
+                      <span>{triesLeft} minutes left today</span>
+                    ) : triesLeft === 'Unlimited' ? (
                       <span>Unlimited Access</span>
                     ) : (
-                      <span>{triesLeft} minutes left today</span>
+                      <span>{triesLeft}</span>
                     )}
                   </div>
                 )}
