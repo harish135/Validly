@@ -1,7 +1,7 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { supabase } from '../supabase';
-import { Session, AuthChangeEvent, User as SupabaseUser } from '@supabase/supabase-js';
+import { Session } from '@supabase/supabase-js';
 
 // Import Components
 import Header from '../components/Header';
@@ -247,6 +247,10 @@ const App: React.FC = () => {
 
   const handleCustomizationChange = (settings: CustomizationSettings) => setCustomizationSettings(settings);
 
+  const handleToggleMyReportsModal = () => setIsMyReportsModalOpen(!isMyReportsModalOpen);
+
+  const handleToggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
+
   const validatorPageProps = useMemo(() => ({
     onExportPDF: handleExportPDF,
     onGenerateBadge: handleGenerateBadge,
@@ -285,7 +289,7 @@ const App: React.FC = () => {
             user={appUser}
             onSignIn={handleGoogleSignIn}
             onSignOut={handleGoogleSignOut}
-            onToggleSidebar={toggleSidebar}
+            onToggleSidebar={handleToggleSidebar}
             isSidebarOpen={isSidebarOpen}
             myReportsCount={myReports.length}
             onToggleMyReports={handleToggleMyReportsModal}
@@ -430,7 +434,7 @@ const App: React.FC = () => {
                   <FormulationAdvisorPage />
                 </ProtectedRoute>
               } />
-              <Route path="*" element={<Navigate to="/\" replace />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </main>
           <Footer navigateTo={navigateTo} />
