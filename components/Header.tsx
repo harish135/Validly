@@ -15,7 +15,7 @@ interface HeaderProps {
   myReportsCount: number;
   onToggleMyReports: () => void;
   navigateTo: (page: Page) => void;
-  triesLeft?: number | 'Unlimited' | null;
+  triesLeft: number | 'Unlimited' | null;
 }
 
 export const ValidlyLogo: React.FC<{ className?: string }> = ({ className = "h-20 w-auto" }) => (
