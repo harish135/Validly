@@ -19,10 +19,11 @@ interface HeaderProps {
 }
 
 export const ValidlyLogo: React.FC<{ className?: string }> = ({ className = "h-20 w-auto" }) => (
-  <svg className={className} viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <circle cx="20" cy="20" r="18" stroke="currentColor" strokeWidth="3" />
-    <path d="M12 20L18 26L28 16" className="stroke-brand-premium-blue" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
+  <img
+    src="/VA-removebg-preview.png"
+    alt="Validly Logo"
+    className={className}
+  />
 );
 
 const Header: React.FC<HeaderProps> = ({ 
