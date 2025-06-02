@@ -52,11 +52,8 @@ const Header: React.FC<HeaderProps> = ({
               {isSidebarOpen ? <CloseIcon className="block h-6 w-6" /> : <MenuIcon className="block h-6 w-6" />}
             </button>
             <a href="#" onClick={(e) => { e.preventDefault(); navigateTo('home'); }} className="flex items-center text-brand-gray-50 hover:text-brand-premium-blue transition-colors">
-              <img
-                src="/VA-removebg-preview.png"
-                alt="Validly Logo"
-                className="h-20 w-auto object-contain"
-              />
+              <ValidlyLogo />
+              <span className="ml-3 text-xl font-semibold">{APP_NAME}</span>
             </a>
           </div>
           
