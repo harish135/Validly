@@ -36,3 +36,5 @@ useEffect(() => {
   fetchUserUsage();
   return () => { mounted = false; }
 }, [appUser]);
+
+export default userUsage
