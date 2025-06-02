@@ -4,39 +4,39 @@ import { supabase } from '../supabase';
 import { Session, AuthChangeEvent, User as SupabaseUser } from '@supabase/supabase-js';
 
 // Import Components
-import Header from './components/Header';
-import Footer from './components/Footer';
-import HomePage from './components/HomePage/HomePage';
-import ValidatorPage from './components/ValidatorPage/ValidatorPage';
-import Modal from './components/Modal';
-import MyReportsModal from './components/MyReportsModal';
-import Sidebar from './components/Sidebar';
-import ProtectedRoute from './components/ProtectedRoute';
+import Header from '../components/Header';
+import Footer from '../components/Footer';
+import HomePage from '../components/HomePage/HomePage';
+import ValidatorPage from '../components/ValidatorPage/ValidatorPage';
+import Modal from '../components/Modal';
+import MyReportsModal from '../components/MyReportsModal';
+import Sidebar from '../components/Sidebar';
+import ProtectedRoute from '../components/ProtectedRoute';
 import { MOCK_PDF_MESSAGE, MOCK_BADGE_MESSAGE, DEFAULT_CUSTOM_COLOR, MOCK_DOCX_MESSAGE, MOCK_JSON_EXPORT_MESSAGE } from './constants';
 import type { ReportData, MyReportItem, CustomizationSettings } from './types';
 import { UserProgressProvider } from './contexts/UserProgressContext';
 import { AppUserProvider } from './contexts/AppUserContext';
 
 // Import Feature Pages
-import CompetitorMonitoringPage from './components/ProFeaturePages/CompetitorMonitoringPage';
-import ApiAccessPage from './components/ProFeaturePages/ApiAccessPage';
-import SupportPage from './components/ProFeaturePages/SupportPage';
-import SymptomAnalyzerPage from './components/SymptomAnalyzerPage/SymptomAnalyzerPage';
-import HealthcareNewsPage from './components/HealthcareNewsPage/HealthcareNewsPage';
-import IngredientAnalyserPage from './components/IngredientAnalyserPage/IngredientAnalyserPage';
-import ConsumerInsightsPage from './components/ProFeaturePages/ConsumerInsightsPage';
-import ComplianceAssistantPage from './components/ProFeaturePages/ComplianceAssistantPage';
-import FormulationAdvisorPage from './components/ProFeaturePages/FormulationAdvisorPage';
-import CommunityForumPage from './components/CommunityForumPage/CommunityForumPage';
-import AchievementsPage from './components/Gamification/AchievementsPage';
-import QuizzesPage from './components/Gamification/QuizzesPage';
-import ChallengesPage from './components/Gamification/ChallengesPage';
+import CompetitorMonitoringPage from '../components/ProFeaturePages/CompetitorMonitoringPage';
+import ApiAccessPage from '../components/ProFeaturePages/ApiAccessPage';
+import SupportPage from '../components/ProFeaturePages/SupportPage';
+import SymptomAnalyzerPage from '../components/SymptomAnalyzerPage/SymptomAnalyzerPage';
+import HealthcareNewsPage from '../components/HealthcareNewsPage/HealthcareNewsPage';
+import IngredientAnalyserPage from '../components/IngredientAnalyserPage/IngredientAnalyserPage';
+import ConsumerInsightsPage from '../components/ProFeaturePages/ConsumerInsightsPage';
+import ComplianceAssistantPage from '../components/ProFeaturePages/ComplianceAssistantPage';
+import FormulationAdvisorPage from '../components/ProFeaturePages/FormulationAdvisorPage';
+import CommunityForumPage from '../components/CommunityForumPage/CommunityForumPage';
+import AchievementsPage from '../components/Gamification/AchievementsPage';
+import QuizzesPage from '../components/Gamification/QuizzesPage';
+import ChallengesPage from '../components/Gamification/ChallengesPage';
 
 // Import New Static Pages
-import PricingPage from './components/StaticPages/PricingPage';
-import ContactPage from './components/StaticPages/ContactPage';
-import TermsPage from './components/StaticPages/TermsPage';
-import LoadingSpinner from './components/LoadingSpinner';
+import PricingPage from '../components/StaticPages/PricingPage';
+import ContactPage from '../components/StaticPages/ContactPage';
+import TermsPage from '../components/StaticPages/TermsPage';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 interface ImportMeta {
   readonly env: {
