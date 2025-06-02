@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from './supabase';
 
-const App = () => {
+const App: React.FC = () => {
+  const [appUser, setAppUser] = useState<any>(null);
   const [userUsage, setUserUsage] = useState<{ triesLeft: number | 'Unlimited' | null }>({ triesLeft: null });
 
   useEffect(() => {
@@ -40,7 +41,14 @@ const App = () => {
     return () => { mounted = false; }
   }, [appUser]);
 
-  return userUsage;
+  return (
+    <div>
+      {/* Placeholder return - replace with actual UI components */}
+      {userUsage.triesLeft !== null && (
+        <p>Tries left: {userUsage.triesLeft}</p>
+      )}
+    </div>
+  );
 };
 
 export default App;
