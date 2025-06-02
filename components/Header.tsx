@@ -17,6 +17,7 @@ import TrophyIcon from './icons/TrophyIcon';
 import QuizIcon from './icons/QuizIcon';
 import TargetIcon from './icons/TargetIcon';
 import ClockIcon from './icons/ClockIcon';
+import MenuIcon from './icons/MenuIcon';
 import type { IconProps } from '../../types';
 import type { Page } from '../App';
 
