@@ -77,7 +77,7 @@ const App: React.FC = () => {
     primaryColor: DEFAULT_CUSTOM_COLOR,
   });
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
-  const [userUsage, setUserUsage] = useState<{ triesLeft: string | number } | null>(null);
+  const [userUsage, setUserUsage] = useState<{ triesLeft: number | 'Unlimited' | null }>({ triesLeft: null });
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -168,7 +168,7 @@ const App: React.FC = () => {
           console.log('App: Fetched user plan/usage RPC result:', { data, error });
           if (error) {
             console.error('App: Error fetching user usage:', error);
-            setUserUsage(null); 
+            setUserUsage({ triesLeft: null });
             return;
           }
           if (data && data.length > 0) {
@@ -178,15 +178,15 @@ const App: React.FC = () => {
             setUserUsage({ triesLeft: newTriesLeft });
           } else {
             console.warn('App: No usage data returned for user from RPC.');
-            setUserUsage(null);
+            setUserUsage({ triesLeft: null });
           }
         } catch(rpcError) {
           console.error('App: Exception during fetchUserUsage RPC call:', rpcError);
-          if (mounted) setUserUsage(null);
+          if (mounted) setUserUsage({ triesLeft: null });
         }
       } else if (!appUser) {
         console.log('App: No appUser, clearing userUsage and not fetching.');
-        setUserUsage(null);
+        setUserUsage({ triesLeft: null });
       }
     };
     fetchUserUsage();
@@ -313,12 +313,12 @@ const App: React.FC = () => {
   return (
     <AppUserProvider user={appUser}>
       <UserProgressProvider>
-        <div className="flex flex-col min-h-screen bg-white font-sans"> {/* Main app wrapper div */}
+        <div className="flex flex-col min-h-screen bg-white font-sans">
           <Header
             user={appUser} onSignIn={handleGoogleSignIn} onSignOut={handleGoogleSignOut}
             onToggleSidebar={toggleSidebar} isSidebarOpen={isSidebarOpen}
             myReportsCount={myReports.length} onToggleMyReports={handleToggleMyReportsModal}
-            navigateTo={navigateTo} triesLeft={userUsage ? userUsage.triesLeft : null}
+            navigateTo={navigateTo} triesLeft={userUsage.triesLeft}
           />
           <Sidebar
             isOpen={isSidebarOpen} onClose={closeSidebar} navigateTo={navigateTo}
@@ -456,12 +456,11 @@ const App: React.FC = () => {
                   <FormulationAdvisorPage />
                 </ProtectedRoute>
               } />
-              <Route path="*" element={<Navigate to="/\" replace />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </main>
           <Footer navigateTo={navigateTo} />
 
-          {/* Modals are direct children of the main app wrapper div */}
           <Modal isOpen={isInfoModalOpen} onClose={closeInfoModal} title={infoModalContent.title}>
             <p>{infoModalContent.message}</p>
           </Modal>
