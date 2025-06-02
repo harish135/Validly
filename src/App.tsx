@@ -151,8 +151,23 @@ const App: React.FC = () => {
     const fetchUserUsage = async () => {
       if (appUser && mounted) {
         try {
-          const { data, error } = await supabase.rpc('get_user_plan_and_usage', { p_user_id: appUser.id });
+          const { data, error } = await supabase
+            .from('user_subscriptions')
+            .select(`
+              subscription_plans (
+                name,
+                daily_time_allowance_minutes
+              ),
+              feature_usage_tracking (
+                usage_count
+              )
+            `)
+            .eq('user_id', appUser.id)
+            .eq('status', 'active')
+            .single();
+
           if (!mounted) return;
+          
           if (error) {
             console.error('App: Error fetching user usage:', error);
             setUserUsage({
@@ -163,13 +178,17 @@ const App: React.FC = () => {
             });
             return;
           }
-          if (data && data.length > 0) {
-            const usage = data[0];
+
+          if (data) {
+            const plan = data.subscription_plans;
+            const usage = data.feature_usage_tracking || [];
+            const minutesUsed = usage.reduce((total: number, record: any) => total + (record.usage_count || 0), 0);
+
             setUserUsage({
-              planName: usage.plan_name,
-              minutesUsed: usage.minutes_used,
-              dailyLimit: usage.daily_limit,
-              isUnlimited: usage.is_unlimited
+              planName: plan?.name || 'Free',
+              minutesUsed: minutesUsed,
+              dailyLimit: plan?.daily_time_allowance_minutes ?? 20,
+              isUnlimited: plan?.daily_time_allowance_minutes === null
             });
           }
         } catch(error) {
@@ -297,14 +316,6 @@ const App: React.FC = () => {
     handleCustomizationChange
   ]);
 
-  if (isInitializingAuth) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-white">
-        <LoadingSpinner message="Initializing application..." />
-      </div>
-    );
-  }
-
   const getTimeDisplay = () => {
     if (userUsage.isUnlimited) {
       return 'Unlimited';
@@ -315,6 +326,14 @@ const App: React.FC = () => {
     }
     return null;
   };
+
+  if (isInitializingAuth) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-white">
+        <LoadingSpinner message="Initializing application..." />
+      </div>
+    );
+  }
 
   return (
     <AppUserProvider user={appUser}>
