@@ -1,9 +1,8 @@
-
 import React from 'react';
 import Section from '../shared/Section';
-import CheckCircleIcon from '../icons/CheckCircleIcon'; // For feature lists
-import IconButton from '../IconButton'; // For "Choose Plan" buttons
-import SparklesIcon from '../icons/SparklesIcon'; // For highlighting a plan
+import CheckCircleIcon from '../icons/CheckCircleIcon'; 
+import IconButton from '../IconButton';
+import SparklesIcon from '../icons/SparklesIcon';
 
 interface PlanFeature {
   text: string;
@@ -18,7 +17,7 @@ interface PricingTier {
   features: PlanFeature[];
   ctaText: string;
   isHighlighted?: boolean;
-  coreToolLimit: string;
+  timeLimit: string;
 }
 
 const PricingPage: React.FC = () => {
@@ -28,7 +27,7 @@ const PricingPage: React.FC = () => {
       price: '$0',
       priceFrequency: '/month',
       description: 'Perfect for exploring core features and occasional use.',
-      coreToolLimit: 'Up to 10 uses/month each',
+      timeLimit: '20 minutes per day',
       features: [
         { text: 'Claim Validator, Ingredient AI, Symptom AI, Personalized Quiz', included: true },
         { text: 'Basic Community Forum Access', included: true },
@@ -42,7 +41,7 @@ const PricingPage: React.FC = () => {
       price: '$24.99',
       priceFrequency: '/month',
       description: 'Ideal for regular users and growing brands needing more power.',
-      coreToolLimit: 'Up to 25 uses/month each',
+      timeLimit: '60 minutes per day',
       features: [
         { text: 'Claim Validator, Ingredient AI, Symptom AI, Personalized Quiz', included: true },
         { text: 'Full Community Forum Access', included: true },
@@ -58,7 +57,7 @@ const PricingPage: React.FC = () => {
       price: '$39.99',
       priceFrequency: '/month',
       description: 'For professionals and businesses requiring unlimited access and premium features.',
-      coreToolLimit: 'Unlimited uses',
+      timeLimit: 'Unlimited usage',
       features: [
         { text: 'Claim Validator, Ingredient AI, Symptom AI, Personalized Quiz', included: true },
         { text: 'All Growth Plan Features', included: true },
@@ -71,9 +70,7 @@ const PricingPage: React.FC = () => {
     },
   ];
 
-  // Image by Brooke Cagle on Unsplash (team discussion/planning): https://unsplash.com/photos/g1Kr4Ozfoac
   const pageImageUrl = "https://images.unsplash.com/photo-1522071820081-009f0129c7da?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1170&q=80";
-
 
   const handleChoosePlan = (planName: string) => {
     alert(`You've selected the ${planName} plan! (This is a simulated action for demo purposes.)`);
@@ -121,8 +118,8 @@ const PricingPage: React.FC = () => {
               </p>
               
               <div className="mb-6">
-                <p className={`font-semibold mb-1 ${tier.isHighlighted ? 'text-white' : 'text-brand-gray-100'}`}>Core AI Tools:</p>
-                <p className={`text-sm ${tier.isHighlighted ? 'text-blue-100' : 'text-brand-gray-300'}`}>{tier.coreToolLimit}</p>
+                <p className={`font-semibold mb-1 ${tier.isHighlighted ? 'text-white' : 'text-brand-gray-100'}`}>Usage Limit:</p>
+                <p className={`text-sm ${tier.isHighlighted ? 'text-blue-100' : 'text-brand-gray-300'}`}>{tier.timeLimit}</p>
               </div>
 
               <ul className="space-y-2.5 mb-8 flex-grow">
@@ -147,8 +144,8 @@ const PricingPage: React.FC = () => {
           ))}
         </div>
         <p className="text-center text-sm text-brand-gray-400 mt-8">
-          All plans include access to our foundational AI models. "Uses" generally refer to one full generation cycle or analysis by a tool.
-          Contact us for enterprise solutions or custom needs. Prices are illustrative for demo purposes.
+          All plans include access to our foundational AI models. Usage limits are reset daily at midnight UTC.
+          Contact us for enterprise solutions or custom needs.
         </p>
       </div>
     </Section>

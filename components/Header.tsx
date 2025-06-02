@@ -3,7 +3,7 @@ import { APP_NAME } from '../constants';
 import MenuIcon from './icons/MenuIcon';
 import CloseIcon from './icons/CloseIcon';
 import HistoryIcon from './icons/HistoryIcon';
-// import SparklesIcon from './icons/SparklesIcon'; // No longer needed for upgrade button
+import ClockIcon from './icons/ClockIcon';
 import type { Page, AppUser } from '../App';
 
 interface HeaderProps {
@@ -71,17 +71,6 @@ const Header: React.FC<HeaderProps> = ({
                     <HistoryIcon className="w-6 h-6" />
                 </button>
             )}
-            {/* Upgrade button removed
-            <button
-                onClick={onUpgradeProClick}
-                className="flex items-center px-2.5 py-1.5 sm:px-3 text-xs sm:text-sm font-medium text-yellow-300 bg-yellow-500 bg-opacity-20 rounded-md hover:bg-opacity-30 transition-colors duration-150 border border-yellow-500 hover:border-yellow-400"
-                title="Upgrade to Pro Plan"
-                aria-label="Upgrade to Pro Plan"
-            >
-                <SparklesIcon className="w-4 h-4 mr-1 sm:mr-1.5 text-yellow-400" />
-                Upgrade
-            </button>
-            */}
           </div>
           <div className="flex items-center space-x-4">
             {user ? (
@@ -93,11 +82,16 @@ const Header: React.FC<HeaderProps> = ({
                     className="h-8 w-8 rounded-full"
                   />
                 )}
-                {/* Show tries left if available */}
+                {/* Show time remaining if available */}
                 {triesLeft !== null && triesLeft !== undefined && (
-                  <span className="text-xs text-brand-premium-blue ml-2">
-                    {triesLeft === 'Unlimited' ? 'Unlimited' : `Tries left: ${triesLeft}`}
-                  </span>
+                  <div className="flex items-center text-xs text-brand-premium-blue bg-brand-gray-800 px-3 py-1.5 rounded-full border border-brand-gray-700">
+                    <ClockIcon className="w-4 h-4 mr-2" />
+                    {triesLeft === 'Unlimited' ? (
+                      <span>Unlimited Access</span>
+                    ) : (
+                      <span>{triesLeft} minutes left today</span>
+                    )}
+                  </div>
                 )}
                 <button
                   onClick={onSignOut}
