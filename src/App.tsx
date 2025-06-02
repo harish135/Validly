@@ -13,7 +13,7 @@ import MyReportsModal from '../components/MyReportsModal';
 import Sidebar from '../components/Sidebar';
 import ProtectedRoute from '../components/ProtectedRoute';
 import { MOCK_PDF_MESSAGE, MOCK_BADGE_MESSAGE, DEFAULT_CUSTOM_COLOR, MOCK_DOCX_MESSAGE, MOCK_JSON_EXPORT_MESSAGE } from '../constants';
-import type { ReportData, MyReportItem, CustomizationSettings } from './types';
+import type { ReportData, MyReportItem, CustomizationSettings } from '../types';
 import { UserProgressProvider } from '../contexts/UserProgressContext';
 import { AppUserProvider } from '../contexts/AppUserContext';
 
@@ -32,20 +32,11 @@ import AchievementsPage from '../components/Gamification/AchievementsPage';
 import QuizzesPage from '../components/Gamification/QuizzesPage';
 import ChallengesPage from '../components/Gamification/ChallengesPage';
 
-// Import New Static Pages
+// Import Static Pages
 import PricingPage from '../components/StaticPages/PricingPage';
 import ContactPage from '../components/StaticPages/ContactPage';
 import TermsPage from '../components/StaticPages/TermsPage';
 import LoadingSpinner from '../components/LoadingSpinner';
-
-interface ImportMeta {
-  readonly env: {
-    readonly VITE_SUPABASE_URL: string;
-    readonly VITE_SUPABASE_ANON_KEY: string;
-    readonly VITE_APP_BASE_URL?: string;
-    readonly MODE: 'development' | 'production' | string;
-  };
-}
 
 export type Page =
   | 'home' | 'validator' | 'ingredient-analyser' | 'ai-news-digest' | 'symptom-analyzer'
@@ -82,63 +73,74 @@ const App: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const handleGoogleSignIn = async () => {
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback`
+  const appBaseUrl = useMemo(() => {
+    if (import.meta.env.MODE === 'production') {
+      return `https://validly.pro`;
+    }
+    return import.meta.env.VITE_APP_BASE_URL || `http://localhost:${window.location.port || '3000'}`;
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    console.log("App: Initializing Auth Effect Mounts");
+    const initializeAuth = async () => {
+      try {
+        const { data: { session: currentSession } } = await supabase.auth.getSession();
+        if (!mounted) { console.log("App: Auth init, but unmounted early."); return; }
+        console.log("App: Initial session fetched:", currentSession ? 'Exists' : 'null');
+        setSession(currentSession);
+        if (currentSession?.user) {
+          const supaUser = currentSession.user;
+          setAppUser({
+            id: supaUser.id,
+            name: supaUser.user_metadata?.full_name || supaUser.user_metadata?.name || supaUser.email?.split('@')[0] || 'User',
+            email: supaUser.email || '',
+            imageUrl: supaUser.user_metadata?.avatar_url || ''
+          });
         }
-      });
-      if (error) throw error;
-    } catch (error) {
-      console.error('Error signing in with Google:', error);
-      setInfoModalContent({
-        title: 'Sign In Error',
-        message: 'There was an error signing in with Google. Please try again.'
-      });
-      setIsInfoModalOpen(true);
-    }
-  };
+      } catch (error) {
+        console.error("App: Error fetching initial session:", error);
+      } finally {
+        if (mounted) {
+          console.log("App: Initializing Auth Finished.");
+          setIsInitializingAuth(false);
+        }
+      }
+    };
+    initializeAuth();
 
-  const handleGoogleSignOut = async () => {
-    try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
-      setAppUser(null);
-      setSession(null);
-      navigate('/');
-    } catch (error) {
-      console.error('Error signing out:', error);
-      setInfoModalContent({
-        title: 'Sign Out Error',
-        message: 'There was an error signing out. Please try again.'
-      });
-      setIsInfoModalOpen(true);
-    }
-  };
-
-  const toggleSidebar = () => {
-    setIsSidebarOpen(!isSidebarOpen);
-  };
-
-  const handleToggleMyReportsModal = () => {
-    setIsMyReportsModalOpen(!isMyReportsModalOpen);
-  };
-
-  const navigateTo = (path: string) => {
-    navigate(path);
-  };
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      async (_event: AuthChangeEvent, currentSession: Session | null) => {
+        if (!mounted) { console.log("App: onAuthStateChange, but unmounted."); return; }
+        console.log('App: onAuthStateChange event:', _event, 'Session:', currentSession ? 'Exists' : 'null');
+        setSession(currentSession);
+        if (currentSession?.user) {
+          const supaUser = currentSession.user;
+          setAppUser({
+            id: supaUser.id,
+            name: supaUser.user_metadata?.full_name || supaUser.user_metadata?.name || supaUser.email?.split('@')[0] || 'User',
+            email: supaUser.email || '',
+            imageUrl: supaUser.user_metadata?.avatar_url || ''
+          });
+        } else {
+          setAppUser(null);
+        }
+      }
+    );
+    return () => {
+      mounted = false;
+      console.log("App: Initializing Auth Effect Unmounts");
+      authListener?.subscription.unsubscribe();
+    };
+  }, [navigate]);
 
   useEffect(() => {
     let mounted = true;
     const fetchUserUsage = async () => {
       if (appUser && mounted) {
-        console.log('App: Fetching user usage for appUser ID:', appUser.id);
         try {
           const { data, error } = await supabase.rpc('get_user_plan_and_usage', { p_user_id: appUser.id });
-          if (!mounted) { console.log("App: fetchUserUsage, but unmounted before setting state."); return; }
-          console.log('App: Fetched user plan/usage RPC result:', { data, error });
+          if (!mounted) return;
           if (error) {
             console.error('App: Error fetching user usage:', error);
             setUserUsage({ triesLeft: null });
@@ -147,24 +149,133 @@ const App: React.FC = () => {
           if (data && data.length > 0) {
             const usage = data[0];
             const newTriesLeft = usage.is_unlimited ? 'Unlimited' : usage.requests_remaining;
-            console.log('App: Setting triesLeft (from fetchUserUsage):', newTriesLeft);
             setUserUsage({ triesLeft: newTriesLeft });
           } else {
-            console.warn('App: No usage data returned for user from RPC.');
             setUserUsage({ triesLeft: null });
           }
-        } catch(rpcError) {
-          console.error('App: Exception during fetchUserUsage RPC call:', rpcError);
+        } catch(error) {
+          console.error('App: Exception during fetchUserUsage:', error);
           if (mounted) setUserUsage({ triesLeft: null });
         }
       } else if (!appUser) {
-        console.log('App: No appUser, clearing userUsage and not fetching.');
         setUserUsage({ triesLeft: null });
       }
     };
     fetchUserUsage();
     return () => { mounted = false; }
   }, [appUser]);
+
+  const handleGoogleSignIn = async () => {
+    const currentPathForRedirect = location.pathname === '/' ? '/validator' : location.pathname;
+    localStorage.setItem('redirectAfterSignIn', currentPathForRedirect);
+    const redirectUrl = `${appBaseUrl}/auth/callback`;
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: redirectUrl, queryParams: { access_type: 'offline', prompt: 'consent' } },
+    });
+    if (error) console.error('App: Error during Supabase OAuth sign-in:', error.message);
+  };
+
+  const handleGoogleSignOut = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      console.error(`App: Sign-out error: ${error.message}`);
+    } else {
+      setInitialClaimForValidator("");
+      setSelectedReportForView(null);
+      navigate('/', { replace: true });
+    }
+  };
+
+  const navigateTo = useCallback((page: Page) => {
+    const pathMap: Record<Page, string> = {
+      'home': '/',
+      'validator': '/validator',
+      'ingredient-analyser': '/ingredient-analyser',
+      'ai-news-digest': '/ai-news-digest',
+      'symptom-analyzer': '/symptom-analyzer',
+      'community-forum': '/community-forum',
+      'achievements': '/achievements',
+      'quizzes': '/quizzes',
+      'challenges': '/challenges',
+      'competitor-monitoring': '/competitor-monitoring',
+      'api-access': '/api-access',
+      'support': '/support',
+      'consumer-insights': '/consumer-insights',
+      'compliance-assistant': '/compliance-assistant',
+      'formulation-advisor': '/formulation-advisor',
+      'pricing': '/pricing',
+      'contact': '/contact',
+      'terms-of-service': '/terms-of-service',
+    };
+    navigate(pathMap[page] || '/');
+    setIsSidebarOpen(false);
+  }, [navigate]);
+
+  const openInfoModal = (title: string, message: string) => {
+    setInfoModalContent({ title, message });
+    setIsInfoModalOpen(true);
+  };
+
+  const closeInfoModal = () => setIsInfoModalOpen(false);
+
+  const handleExportPDF = useCallback(() => openInfoModal("Export PDF (Mock)", MOCK_PDF_MESSAGE), []);
+  const handleGenerateBadge = useCallback(() => openInfoModal("Generate Trust Badge (Mock)", MOCK_BADGE_MESSAGE), []);
+  const handleExportDocx = useCallback(() => openInfoModal("Export as DOCX (Mock)", MOCK_DOCX_MESSAGE), []);
+  const handleExportJson = useCallback(() => openInfoModal("Export Data (JSON) (Mock)", MOCK_JSON_EXPORT_MESSAGE), []);
+
+  const handleReportGenerated = useCallback((report: ReportData) => {
+    setMyReports(prevReports => {
+      const newReportItem: MyReportItem = {
+        id: report.id,
+        claim: report.claim,
+        confidenceScore: report.confidenceScore,
+        timestamp: report.generatedTimestamp,
+        fullReportData: report
+      };
+      return [newReportItem, ...prevReports.filter(r => r.id !== report.id).slice(0, 9)];
+    });
+  }, []);
+
+  const handleSelectMyReportItem = (reportData: ReportData) => {
+    setSelectedReportForView(reportData);
+    setInitialClaimForValidator(reportData.claim);
+    navigate('/validator');
+    setIsMyReportsModalOpen(false);
+    setIsSidebarOpen(false);
+  };
+
+  const handleCustomizationChange = (settings: CustomizationSettings) => setCustomizationSettings(settings);
+
+  const validatorPageProps = useMemo(() => ({
+    onExportPDF: handleExportPDF,
+    onGenerateBadge: handleGenerateBadge,
+    onExportDocx: handleExportDocx,
+    onExportJson: handleExportJson,
+    onReportGenerated: handleReportGenerated,
+    initialReport: selectedReportForView,
+    initialClaim: initialClaimForValidator,
+    customizationSettings,
+    onCustomizationChange: handleCustomizationChange
+  }), [
+    selectedReportForView,
+    initialClaimForValidator,
+    customizationSettings,
+    handleExportPDF,
+    handleGenerateBadge,
+    handleExportDocx,
+    handleExportJson,
+    handleReportGenerated,
+    handleCustomizationChange
+  ]);
+
+  if (isInitializingAuth) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-white">
+        <LoadingSpinner message="Initializing application..." />
+      </div>
+    );
+  }
 
   return (
     <AppUserProvider user={appUser}>
@@ -179,9 +290,181 @@ const App: React.FC = () => {
             myReportsCount={myReports.length}
             onToggleMyReports={handleToggleMyReportsModal}
             navigateTo={navigateTo}
-            triesLeft={userUsage?.triesLeft}
+            triesLeft={userUsage.triesLeft}
           />
-          {/* Rest of your JSX */}
+          <Sidebar
+            isOpen={isSidebarOpen}
+            onClose={() => setIsSidebarOpen(false)}
+            navigateTo={navigateTo}
+            currentPage={(location.pathname.substring(1) || 'home') as Page}
+          />
+          <main className="flex-grow container mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-premium-slide-in-up">
+            <Routes>
+              <Route path="/" element={<HomePage navigateTo={navigateTo} myReportsCount={myReports.length} />} />
+              <Route path="/pricing" element={<PricingPage />} />
+              <Route path="/contact" element={<ContactPage />} />
+              <Route path="/terms-of-service" element={<TermsPage />} />
+              <Route path="/validator" element={
+                <ProtectedRoute
+                  session={session}
+                  setPendingRedirectPath={setPendingRedirectPath}
+                  setIsSignInPromptOpen={setIsSignInPromptOpen}
+                >
+                  <ValidatorPage {...validatorPageProps} />
+                </ProtectedRoute>
+              } />
+              <Route path="/ingredient-analyser" element={
+                <ProtectedRoute
+                  session={session}
+                  setPendingRedirectPath={setPendingRedirectPath}
+                  setIsSignInPromptOpen={setIsSignInPromptOpen}
+                >
+                  <IngredientAnalyserPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/ai-news-digest" element={
+                <ProtectedRoute
+                  session={session}
+                  setPendingRedirectPath={setPendingRedirectPath}
+                  setIsSignInPromptOpen={setIsSignInPromptOpen}
+                >
+                  <HealthcareNewsPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/symptom-analyzer" element={
+                <ProtectedRoute
+                  session={session}
+                  setPendingRedirectPath={setPendingRedirectPath}
+                  setIsSignInPromptOpen={setIsSignInPromptOpen}
+                >
+                  <SymptomAnalyzerPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/community-forum" element={
+                <ProtectedRoute
+                  session={session}
+                  setPendingRedirectPath={setPendingRedirectPath}
+                  setIsSignInPromptOpen={setIsSignInPromptOpen}
+                >
+                  <CommunityForumPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/achievements" element={
+                <ProtectedRoute
+                  session={session}
+                  setPendingRedirectPath={setPendingRedirectPath}
+                  setIsSignInPromptOpen={setIsSignInPromptOpen}
+                >
+                  <AchievementsPage navigateTo={navigateTo} />
+                </ProtectedRoute>
+              } />
+              <Route path="/quizzes" element={
+                <ProtectedRoute
+                  session={session}
+                  setPendingRedirectPath={setPendingRedirectPath}
+                  setIsSignInPromptOpen={setIsSignInPromptOpen}
+                >
+                  <QuizzesPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/challenges" element={
+                <ProtectedRoute
+                  session={session}
+                  setPendingRedirectPath={setPendingRedirectPath}
+                  setIsSignInPromptOpen={setIsSignInPromptOpen}
+                >
+                  <ChallengesPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/competitor-monitoring" element={
+                <ProtectedRoute
+                  session={session}
+                  setPendingRedirectPath={setPendingRedirectPath}
+                  setIsSignInPromptOpen={setIsSignInPromptOpen}
+                >
+                  <CompetitorMonitoringPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/api-access" element={
+                <ProtectedRoute
+                  session={session}
+                  setPendingRedirectPath={setPendingRedirectPath}
+                  setIsSignInPromptOpen={setIsSignInPromptOpen}
+                >
+                  <ApiAccessPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/support" element={
+                <ProtectedRoute
+                  session={session}
+                  setPendingRedirectPath={setPendingRedirectPath}
+                  setIsSignInPromptOpen={setIsSignInPromptOpen}
+                >
+                  <SupportPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/consumer-insights" element={
+                <ProtectedRoute
+                  session={session}
+                  setPendingRedirectPath={setPendingRedirectPath}
+                  setIsSignInPromptOpen={setIsSignInPromptOpen}
+                >
+                  <ConsumerInsightsPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/compliance-assistant" element={
+                <ProtectedRoute
+                  session={session}
+                  setPendingRedirectPath={setPendingRedirectPath}
+                  setIsSignInPromptOpen={setIsSignInPromptOpen}
+                >
+                  <ComplianceAssistantPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/formulation-advisor" element={
+                <ProtectedRoute
+                  session={session}
+                  setPendingRedirectPath={setPendingRedirectPath}
+                  setIsSignInPromptOpen={setIsSignInPromptOpen}
+                >
+                  <FormulationAdvisorPage />
+                </ProtectedRoute>
+              } />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </main>
+          <Footer navigateTo={navigateTo} />
+
+          <Modal isOpen={isInfoModalOpen} onClose={closeInfoModal} title={infoModalContent.title}>
+            <p>{infoModalContent.message}</p>
+          </Modal>
+
+          <Modal 
+            isOpen={isSignInPromptOpen} 
+            onClose={() => setIsSignInPromptOpen(false)} 
+            title="Sign In Required"
+          >
+            <div className="text-center">
+              <p className="mb-4 text-gray-700">
+                Please sign in to access this feature. Sign in to continue to:
+                <br />
+                <span className="font-semibold text-brand-premium-blue">
+                  {pendingRedirectPath?.split('/').pop()?.replace(/-/g, ' ').toUpperCase()}
+                </span>
+              </p>
+              <div className="flex justify-center space-x-4">
+                <button onClick={handleGoogleSignIn} className="px-6 py-2 text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">Sign In</button>
+                <button onClick={() => setIsSignInPromptOpen(false)} className="px-6 py-2 text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2">Cancel</button>
+              </div>
+            </div>
+          </Modal>
+
+          <MyReportsModal
+            isOpen={isMyReportsModalOpen}
+            onClose={handleToggleMyReportsModal}
+            myReportItems={myReports}
+            onSelectMyReportItem={handleSelectMyReportItem}
+          />
         </div>
       </UserProgressProvider>
     </AppUserProvider>
